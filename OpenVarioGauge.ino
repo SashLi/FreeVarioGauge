@@ -59,7 +59,7 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 SemaphoreHandle_t xTFTSemaphore;
 
 
-const String SOFTWARE_VERSION = "  V1.0 May 2020";
+const String SOFTWARE_VERSION = "  V1.0 - 2020";
 
 static String mod;                                     //aktueller Modus
 static String mce;                                     //NMEA-String zum Setzen des externen McCready-Wertes
