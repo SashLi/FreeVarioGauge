@@ -653,25 +653,33 @@ void changeValueOption () {
 
 void changeLevelTwoMenu (bool changeLevelTwoValue) {
   if (nameSetting == "QNH") {
-    if (changeLevelTwoValue) {
+    if (changeLevelTwoValue && valueQnhAsFloat < 1300) {
       valueQnhAsFloat = valueQnhAsFloat + 1;
     }
-    else {
+    else if (!changeLevelTwoValue && valueQnhAsFloat > 850) {
       valueQnhAsFloat = valueQnhAsFloat - 1;
     }
     String qnhStr = ("$PFV,Q,S," + String(valueQnhAsFloat) + "*");
     int checksum = calculateChecksum(qnhStr);
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    valueQnhAsString = dtostrf(valueQnhAsFloat, 4, 0, buf);
+    qnhWasUpdated = true;
     Serial2.printf("%s%X\n", qnhStr.c_str(), checksum); //QNH in XCSoar schreiben
   }
   if (nameSetting == "Bug") {
-    if (changeLevelTwoValue) {
+    if (changeLevelTwoValue && valueBugAsFloat < 50) {
       valueBugAsFloat = valueBugAsFloat + 1;
     }
-    else {
+    else if (!changeLevelTwoValue && valueBugAsFloat > 0){
       valueBugAsFloat = valueBugAsFloat - 1;
     }
     String bugStr = ("$PFV,B,S," + String(valueBugAsFloat) + "*");
     int checksum = calculateChecksum(bugStr);
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
+    bugWasUpdated = true;
     Serial2.printf("%s%X\n", bugStr.c_str(), checksum); //Mückenwert in XCSoar schreiben
   }
 }
