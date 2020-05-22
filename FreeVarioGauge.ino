@@ -748,7 +748,7 @@ void ValueRefresh(void *parameter) {
     if (tasWasUpdated || grsWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        if(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
         tasWasUpdated = false;
         grsWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
