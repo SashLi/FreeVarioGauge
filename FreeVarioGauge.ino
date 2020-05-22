@@ -732,6 +732,10 @@ void ValueRefresh(void *parameter) {
             }
           }
           else if (requestDrawMenuLevel == 3) {
+            tft.drawRect(66, 197, 147, 37, BLACK);
+            tft.drawRect(65, 196, 149, 39, BLACK);
+            tft.drawRect(64, 195, 151, 41, BLACK);
+            
             tft.drawLine(64, 233, 214, 233, BLUE);
             tft.drawLine(64, 234, 214, 234, BLUE);
             tft.drawLine(64, 235, 214, 235, BLUE);
