@@ -1,4 +1,4 @@
-//    OpenVarioGauge is a programm to generate the vario display using NMEA Output
+ //    OpenVarioGauge is a programm to generate the vario display using NMEA Output
 //    of OpenVario.
 //    Copyright (C) 2019  Dirk Jung Blaubart@gmx.de
 //
@@ -740,7 +740,7 @@ void ValueRefresh(void *parameter) {
     if (vaaWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoLarge, "WHITE", "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
+        DrawInfo(nameOfField, infoLarge, WHITE, "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
         vaaWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -748,7 +748,7 @@ void ValueRefresh(void *parameter) {
     if (tasWasUpdated || grsWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, menuSpeedColor, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        if(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
         tasWasUpdated = false;
         grsWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
@@ -758,7 +758,7 @@ void ValueRefresh(void *parameter) {
     if (hagWasUpdated || higWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, menuHightColor, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
         hagWasUpdated = false;
         higWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
@@ -769,7 +769,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueMacAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
         mcWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -778,7 +778,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueQnhAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
         qnhWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -787,7 +787,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueBugAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
         bugWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -796,7 +796,7 @@ void ValueRefresh(void *parameter) {
     if (stfModeWasUpdate) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, "WHITE", "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
         stfModeWasUpdate = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -1233,16 +1233,11 @@ void DrawArc(float inangle, float liftValue, double speedToFly, float trueAirSpe
 //***********************************
 //**** Draw ValueBoxes and Data  ****
 //***********************************
-void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
+void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, uint32_t color, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
   fontOfName.loadFont("micross15");
   fontOfName.createSprite(spriteNameWidth, 25);
   fontOfName.setCursor(0, 2);
-  if (color == "WHITE") {
-    fontOfName.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfName.setTextColor(BLUE, BLACK);
-  }
+  fontOfName.setTextColor(color, BLACK);
   fontOfName.setTextSize(2);
   fontOfName.println(spriteName);
   fontOfName.pushSprite(x, y);
@@ -1256,12 +1251,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, Stri
     fontOfInfo.loadFont("micross50");
   }
   fontOfInfo.createSprite(spriteValueWidth, spriteValueHight);
-  if (color == "WHITE") {
-    fontOfInfo.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfInfo.setTextColor(BLUE, BLACK);
-  }
+  fontOfInfo.setTextColor(color, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(value, spriteValueWidth, 2);
@@ -1269,12 +1259,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, Stri
   fontOfInfo.deleteSprite();
 
   fontOfInfo.createSprite(spriteunitWidth, 25);
-  if (color == "WHITE") {
-    fontOfInfo.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfInfo.setTextColor(BLUE, BLACK);
-  }
+  fontOfInfo.setTextColor(color, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(unit, spriteunitWidth, 2);
