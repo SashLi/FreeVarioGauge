@@ -77,9 +77,6 @@ static String valueVaaAsString = "0.0";
 static String valueHigAsString = "0";
 static String valueHagAsString = "0";
 static String valueMacAsString = "0.0";
-static String menuSpeedColor = "WHITE";
-static String menuHightColor = "WHITE";
-static String menuValueColor = "WHITE";
 
 extern uint16_t logoOV[];
 
@@ -261,6 +258,8 @@ void EncoderReader(void *p) {
     long encoderPositionNew = Vario_Enc.getCount();
     long timeSystemRuns = millis() - lastTimeBoot;
 
+    TaskHandle_t blinkMenuHandler;
+
     if (encoderPositionNew > encoderPosition) {
       encoderRight = true;
       encoderWasMoved = true;
@@ -349,11 +348,10 @@ void EncoderReader(void *p) {
     if (pushButtonIsLongpress && !pushButtonPressed && !menuWasTriggered && !subMenuTriggered && !encoderWasMoved && timeSystemRuns > TIME_SINCE_BOOT) {
       menuWasTriggered = true;
       menuActiveSince = millis(); // set time to now
+      DrawMenu(selectedMenu, 1, tft);
       // Wait for release of pushButton
       while (digitalRead(VE_PB) == LOW) {}
-      menuSpeedColor = "BLUE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
+      xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
     }
 
     else if (!pushButtonIsLongpress && !pushButtonPressed && !menuWasTriggered && !subMenuTriggered && !subMenuLevelTwoTriggered && encoderWasMoved) {
@@ -361,48 +359,31 @@ void EncoderReader(void *p) {
     }
 
     else if (!pushButtonIsLongpress && !pushButtonPressed && menuWasTriggered && !subMenuTriggered && encoderWasMoved) {
+      if (blinkMenuHandler != NULL) {
+        vTaskDelete(blinkMenuHandler);
+      }
 
       if (selectedMenu == MENU_SPEED_TYP) {
-        menuSpeedColor = "BLUE";
-        menuHightColor = "WHITE";
-        menuValueColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        DrawMenu(MENU_SPEED_TYP, 1, tft);
+        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
-        menuSpeedColor = "WHITE";
-        menuHightColor = "BLUE";
-        menuValueColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        DrawMenu(MENU_HIGHT_TYP, 1, tft);
+        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        menuValueColor = "BLUE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        DrawMenu(MENU_VALUE_TYP, 1, tft);
+        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
       }
       menuActiveSince = millis(); // set time to now
     }
     else if (menuWasTriggered && !subMenuTriggered && !pushButtonIsLongpress && pushButtonPressed) {
       // Wait for release of pushButton
       while (digitalRead(VE_PB) == LOW) {}
+      if (blinkMenuHandler != NULL) {
+        vTaskDelete(blinkMenuHandler);
+      }
+
       if (selectedMenu == MENU_SPEED_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
@@ -443,12 +424,6 @@ void EncoderReader(void *p) {
         subMenuTriggered = false;
         selectedMenu = MENU_SPEED_TYP;
         DrawMenu(0, 0, tft);
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuActiveSince = millis(); // set time to now
@@ -456,16 +431,6 @@ void EncoderReader(void *p) {
         subMenuLevelTwoTriggered = true;
         DrawMenu(0, 0, tft);
         DrawMenu(3, 3, tft);
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        menuValueColor = "BLUE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
       }
     }
 
@@ -481,16 +446,6 @@ void EncoderReader(void *p) {
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
       DrawMenu(0, 0, tft);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
     }
 
     // check run time in menu and exit if time > 10000
@@ -499,16 +454,6 @@ void EncoderReader(void *p) {
       subMenuTriggered = false;
       subMenuLevelTwoTriggered = false;
       DrawMenu(0, 0, tft);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
     }
 
     // check run time in menu and exit if time > 10000
@@ -517,50 +462,71 @@ void EncoderReader(void *p) {
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
       DrawMenu(0, 0, tft);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
     }
     else if ((millis() - menuActiveSince) > 10000 && subMenuTriggered) {
       subMenuTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
       DrawMenu(0, 0, tft);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
     }
     else if ((millis() - menuActiveSince) > 10000 && menuWasTriggered) {
       menuWasTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
       DrawMenu(0, 0, tft);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
     }
     vTaskDelay(50);
+  }
+}
+
+void MenuBlink(void *parameter) {
+  long startBlink = millis();
+  int selectedMenu = *((int*)parameter);
+
+  if (selectedMenu == 1) {
+    while (true) {
+      tft.drawRect(47, 111, 166, 37, WHITE);
+      tft.drawRect(46, 110, 168, 39, WHITE);
+      tft.drawRect(45, 109, 170, 41, WHITE);
+      vTaskDelay(600);
+      tft.drawRect(47, 111, 166, 37, BLACK);
+      tft.drawRect(46, 110, 168, 39, BLACK);
+      tft.drawRect(45, 109, 170, 41, BLACK);
+      vTaskDelay(600);
+      if ( (millis() - startBlink) > 10000 ) {
+        vTaskDelete(NULL);
+      }
+    }
+  }
+  else if (selectedMenu == 2) {
+    while (true) {
+      tft.drawRect(65, 154, 148, 37, WHITE);
+      tft.drawRect(64, 153, 150, 39, WHITE);
+      tft.drawRect(63, 152, 152, 41, WHITE);
+      vTaskDelay(600);
+      tft.drawRect(65, 154, 148, 37, BLACK);
+      tft.drawRect(64, 153, 150, 39, BLACK);
+      tft.drawRect(63, 152, 152, 41, BLACK);
+      vTaskDelay(600);
+      if ( (millis() - startBlink) > 10000 ) {
+        vTaskDelete(NULL);
+      }
+    }
+  }
+  else if (selectedMenu == 3) {
+    while (true) {
+      tft.drawRect(66, 197, 147, 37, WHITE);
+      tft.drawRect(65, 196, 149, 39, WHITE);
+      tft.drawRect(64, 195, 151, 41, WHITE);
+      vTaskDelay(600);
+      tft.drawRect(66, 197, 147, 37, BLACK);
+      tft.drawRect(65, 196, 149, 39, BLACK);
+      tft.drawRect(64, 195, 151, 41, BLACK);
+      vTaskDelay(600);
+      if ( (millis() - startBlink) > 10000 ) {
+        vTaskDelete(NULL);
+      }
+    }
   }
 }
 
@@ -579,29 +545,59 @@ void DrawMenu(int selectedMenuNumber, int level, TFT_eSPI tftIN) {
     tftIN.drawRect(65, 196, 149, 39, BLACK);
     tftIN.drawRect(64, 195, 151, 41, BLACK);
   }
+
+  else if (level == 1) {
+    tftIN.drawRect(47, 111, 166, 37, BLACK);
+    tftIN.drawRect(46, 110, 168, 39, BLACK);
+    tftIN.drawRect(45, 109, 170, 41, BLACK);
+
+    tftIN.drawRect(65, 154, 148, 37, BLACK);
+    tftIN.drawRect(64, 153, 150, 39, BLACK);
+    tftIN.drawRect(63, 152, 152, 41, BLACK);
+
+    tftIN.drawRect(66, 197, 147, 37, BLACK);
+    tftIN.drawRect(65, 196, 149, 39, BLACK);
+    tftIN.drawRect(64, 195, 151, 41, BLACK);
+
+    if (selectedMenuNumber == 1) {
+      tftIN.drawRect(47, 111, 166, 37, WHITE);
+      tftIN.drawRect(46, 110, 168, 39, WHITE);
+      tftIN.drawRect(45, 109, 170, 41, WHITE);
+    }
+    else if (selectedMenuNumber == 2) {
+      tftIN.drawRect(65, 154, 148, 37, WHITE);
+      tftIN.drawRect(64, 153, 150, 39, WHITE);
+      tftIN.drawRect(63, 152, 152, 41, WHITE);
+    }
+    else if (selectedMenuNumber == 3) {
+      tftIN.drawRect(66, 197, 147, 37, WHITE);
+      tftIN.drawRect(65, 196, 149, 39, WHITE);
+      tftIN.drawRect(64, 195, 151, 41, WHITE);
+    }
+  }
   else if (level == 2) {
     if (selectedMenuNumber == 1) {
-      tftIN.drawRect(47, 111, 166, 37, BLUE);
-      tftIN.drawRect(46, 110, 168, 39, BLUE);
-      tftIN.drawRect(45, 109, 170, 41, BLUE);
+      tftIN.drawRect(47, 111, 166, 37, WHITE);
+      tftIN.drawRect(46, 110, 168, 39, WHITE);
+      tftIN.drawRect(45, 109, 170, 41, WHITE);
     }
 
     if (selectedMenuNumber == 2) {
-      tftIN.drawRect(65, 154, 148, 37, BLUE);
-      tftIN.drawRect(64, 153, 150, 39, BLUE);
-      tftIN.drawRect(63, 152, 152, 41, BLUE);
+      tftIN.drawRect(65, 154, 148, 37, WHITE);
+      tftIN.drawRect(64, 153, 150, 39, WHITE);
+      tftIN.drawRect(63, 152, 152, 41, WHITE);
     }
 
     if (selectedMenuNumber == 3) {
-      tftIN.drawRect(66, 197, 147, 37, BLUE);
-      tftIN.drawRect(65, 196, 149, 39, BLUE);
-      tftIN.drawRect(64, 195, 151, 41, BLUE);
+      tftIN.drawRect(66, 197, 147, 37, WHITE);
+      tftIN.drawRect(65, 196, 149, 39, WHITE);
+      tftIN.drawRect(64, 195, 151, 41, WHITE);
     }
   }
   else if (level == 3) {
-    tftIN.drawLine(64, 233, 214, 233, BLUE);
-    tftIN.drawLine(64, 234, 214, 234, BLUE);
-    tftIN.drawLine(64, 235, 214, 235, BLUE);
+    tftIN.drawLine(64, 233, 214, 233, WHITE);
+    tftIN.drawLine(64, 234, 214, 234, WHITE);
+    tftIN.drawLine(64, 235, 214, 235, WHITE);
   }
 }
 
@@ -675,7 +671,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     if (changeLevelTwoValue && valueBugAsFloat < 50) {
       valueBugAsFloat = valueBugAsFloat + 1;
     }
-    else if (!changeLevelTwoValue && valueBugAsFloat > 0) {
+    else if (!changeLevelTwoValue && valueBugAsFloat > 0){
       valueBugAsFloat = valueBugAsFloat - 1;
     }
     String bugStr = ("$PFV,B,S," + String(valueBugAsFloat) + "*");
@@ -740,15 +736,16 @@ void ValueRefresh(void *parameter) {
     if (vaaWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoLarge, "WHITE", "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
+        DrawInfo(nameOfField, infoLarge, "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
         vaaWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
+
     if (tasWasUpdated || grsWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, menuSpeedColor, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        DrawInfo(nameOfField, infoSmall, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
         tasWasUpdated = false;
         grsWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
@@ -758,7 +755,7 @@ void ValueRefresh(void *parameter) {
     if (hagWasUpdated || higWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, menuHightColor, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        DrawInfo(nameOfField, infoSmall, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
         hagWasUpdated = false;
         higWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
@@ -769,7 +766,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueMacAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        DrawInfo(nameOfField, infoSmall, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
         mcWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -778,7 +775,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueQnhAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        DrawInfo(nameOfField, infoSmall, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
         qnhWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -787,7 +784,7 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueBugAsString;
-        DrawInfo(nameOfField, infoSmall, menuValueColor, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        DrawInfo(nameOfField, infoSmall, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
         bugWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -796,7 +793,7 @@ void ValueRefresh(void *parameter) {
     if (stfModeWasUpdate) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, "WHITE", "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
+        DrawInfo(nameOfField, infoSmall, "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
         stfModeWasUpdate = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -1233,16 +1230,11 @@ void DrawArc(float inangle, float liftValue, double speedToFly, float trueAirSpe
 //***********************************
 //**** Draw ValueBoxes and Data  ****
 //***********************************
-void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
+void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
   fontOfName.loadFont("micross15");
   fontOfName.createSprite(spriteNameWidth, 25);
   fontOfName.setCursor(0, 2);
-  if (color == "WHITE") {
-    fontOfName.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfName.setTextColor(BLUE, BLACK);
-  }
+  fontOfName.setTextColor(WHITE, BLACK);
   fontOfName.setTextSize(2);
   fontOfName.println(spriteName);
   fontOfName.pushSprite(x, y);
@@ -1256,12 +1248,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, Stri
     fontOfInfo.loadFont("micross50");
   }
   fontOfInfo.createSprite(spriteValueWidth, spriteValueHight);
-  if (color == "WHITE") {
-    fontOfInfo.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfInfo.setTextColor(BLUE, BLACK);
-  }
+  fontOfInfo.setTextColor(WHITE, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(value, spriteValueWidth, 2);
@@ -1269,12 +1256,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String color, Stri
   fontOfInfo.deleteSprite();
 
   fontOfInfo.createSprite(spriteunitWidth, 25);
-  if (color == "WHITE") {
-    fontOfInfo.setTextColor(WHITE, BLACK);
-  }
-  else {
-    fontOfInfo.setTextColor(BLUE, BLACK);
-  }
+  fontOfInfo.setTextColor(WHITE, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(unit, spriteunitWidth, 2);
