@@ -1,4 +1,4 @@
- //    OpenVarioGauge is a programm to generate the vario display using NMEA Output
+//    OpenVarioGauge is a programm to generate the vario display using NMEA Output
 //    of OpenVario.
 //    Copyright (C) 2019  Dirk Jung Blaubart@gmx.de
 //
@@ -109,21 +109,15 @@ static bool bugWasUpdated = true;
 static bool stfModeWasUpdate = true;
 
 int stf_mode_state;
-int countMenu = 0;
-int CountSubmenuValue = 0;
-int CountSubmenuSpeed = 0;
-int CountSubmenuHeight = 0;
-int SpeedMenu = 0;
-int HeightMenu = 0;
+
 int spriteNameWidthSpeed, spriteValueWidthSpeed, spriteunitWidthSpeed;
 int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 
-long count_PB = 0;
-long oldPositionValue  = -999;
-long oldPositionmenu  = -999;
-long leavedMenu = 0;
+static int requestDrawMenu = 0;
+static int requestDrawMenuLevel = 0;
+static bool requestMenuPaint = false;
 
 bool showBootscreen = true;
 bool V_PB_active = false;
@@ -406,19 +400,19 @@ void EncoderReader(void *p) {
       if (selectedMenu == MENU_SPEED_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_SPEED_TYP, 2, tft);
+        DrawMenu(MENU_SPEED_TYP, 2);
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_HIGHT_TYP, 2, tft);
+        DrawMenu(MENU_HIGHT_TYP, 2);
 
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
         settingStartValueType();
-        DrawMenu(MENU_VALUE_TYP, 2, tft);
+        DrawMenu(MENU_VALUE_TYP, 2);
       }
       menuActiveSince = millis(); // set time to now
     }
@@ -442,7 +436,7 @@ void EncoderReader(void *p) {
       if (selectedMenu == MENU_SPEED_TYP || selectedMenu  == MENU_HIGHT_TYP) {
         subMenuTriggered = false;
         selectedMenu = MENU_SPEED_TYP;
-        DrawMenu(0, 0, tft);
+        DrawMenu(0, 0);
         menuSpeedColor = "WHITE";
         menuHightColor = "WHITE";
         tasWasUpdated = true;
@@ -454,8 +448,8 @@ void EncoderReader(void *p) {
         menuActiveSince = millis(); // set time to now
         subMenuTriggered = false;
         subMenuLevelTwoTriggered = true;
-        DrawMenu(0, 0, tft);
-        DrawMenu(3, 3, tft);
+        DrawMenu(0, 0);
+        DrawMenu(3, 3);
         menuSpeedColor = "WHITE";
         menuHightColor = "WHITE";
         menuValueColor = "BLUE";
@@ -480,7 +474,7 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      DrawMenu(0, 0);
       menuSpeedColor = "WHITE";
       menuHightColor = "WHITE";
       menuValueColor = "WHITE";
@@ -498,7 +492,7 @@ void EncoderReader(void *p) {
       menuWasTriggered = false;
       subMenuTriggered = false;
       subMenuLevelTwoTriggered = false;
-      DrawMenu(0, 0, tft);
+      DrawMenu(0, 0);
       menuSpeedColor = "WHITE";
       menuHightColor = "WHITE";
       menuValueColor = "WHITE";
@@ -516,7 +510,7 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      DrawMenu(0, 0);
       menuSpeedColor = "WHITE";
       menuHightColor = "WHITE";
       menuValueColor = "WHITE";
@@ -532,7 +526,7 @@ void EncoderReader(void *p) {
       subMenuTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      DrawMenu(0, 0);
       menuSpeedColor = "WHITE";
       menuHightColor = "WHITE";
       menuValueColor = "WHITE";
@@ -548,7 +542,7 @@ void EncoderReader(void *p) {
       menuWasTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      DrawMenu(0, 0);
       menuSpeedColor = "WHITE";
       menuHightColor = "WHITE";
       menuValueColor = "WHITE";
@@ -564,45 +558,12 @@ void EncoderReader(void *p) {
   }
 }
 
-void DrawMenu(int selectedMenuNumber, int level, TFT_eSPI tftIN) {
+void DrawMenu(int selectedMenuNumber, int level) {
 
-  if (level == 0) {
-    tftIN.drawRect(47, 111, 166, 37, BLACK);
-    tftIN.drawRect(46, 110, 168, 39, BLACK);
-    tftIN.drawRect(45, 109, 170, 41, BLACK);
+  requestDrawMenu = selectedMenuNumber;
+  requestDrawMenuLevel = level;
+  requestMenuPaint = true;
 
-    tftIN.drawRect(65, 154, 148, 37, BLACK);
-    tftIN.drawRect(64, 153, 150, 39, BLACK);
-    tftIN.drawRect(63, 152, 152, 41, BLACK);
-
-    tftIN.drawRect(66, 197, 147, 37, BLACK);
-    tftIN.drawRect(65, 196, 149, 39, BLACK);
-    tftIN.drawRect(64, 195, 151, 41, BLACK);
-  }
-  else if (level == 2) {
-    if (selectedMenuNumber == 1) {
-      tftIN.drawRect(47, 111, 166, 37, BLUE);
-      tftIN.drawRect(46, 110, 168, 39, BLUE);
-      tftIN.drawRect(45, 109, 170, 41, BLUE);
-    }
-
-    if (selectedMenuNumber == 2) {
-      tftIN.drawRect(65, 154, 148, 37, BLUE);
-      tftIN.drawRect(64, 153, 150, 39, BLUE);
-      tftIN.drawRect(63, 152, 152, 41, BLUE);
-    }
-
-    if (selectedMenuNumber == 3) {
-      tftIN.drawRect(66, 197, 147, 37, BLUE);
-      tftIN.drawRect(65, 196, 149, 39, BLUE);
-      tftIN.drawRect(64, 195, 151, 41, BLUE);
-    }
-  }
-  else if (level == 3) {
-    tftIN.drawLine(64, 233, 214, 233, BLUE);
-    tftIN.drawLine(64, 234, 214, 234, BLUE);
-    tftIN.drawLine(64, 235, 214, 235, BLUE);
-  }
 }
 
 void changeMCvalue(bool mcUp) {
@@ -735,6 +696,53 @@ void ValueRefresh(void *parameter) {
       valueSpeed = valueTasAsString;
     }
 
+    if (requestMenuPaint){
+      if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+      {
+            if (requestDrawMenuLevel == 0) {
+            tft.drawRect(47, 111, 166, 37, BLACK);
+            tft.drawRect(46, 110, 168, 39, BLACK);
+            tft.drawRect(45, 109, 170, 41, BLACK);
+        
+            tft.drawRect(65, 154, 148, 37, BLACK);
+            tft.drawRect(64, 153, 150, 39, BLACK);
+            tft.drawRect(63, 152, 152, 41, BLACK);
+        
+            tft.drawRect(66, 197, 147, 37, BLACK);
+            tft.drawRect(65, 196, 149, 39, BLACK);
+            tft.drawRect(64, 195, 151, 41, BLACK);
+          }
+          else if (requestDrawMenuLevel == 2) {
+            if (requestDrawMenu == 1) {
+              tft.drawRect(47, 111, 166, 37, BLUE);
+              tft.drawRect(46, 110, 168, 39, BLUE);
+              tft.drawRect(45, 109, 170, 41, BLUE);
+            }
+        
+            if (requestDrawMenu == 2) {
+              tft.drawRect(65, 154, 148, 37, BLUE);
+              tft.drawRect(64, 153, 150, 39, BLUE);
+              tft.drawRect(63, 152, 152, 41, BLUE);
+            }
+        
+            if (requestDrawMenu == 3) {
+              tft.drawRect(66, 197, 147, 37, BLUE);
+              tft.drawRect(65, 196, 149, 39, BLUE);
+              tft.drawRect(64, 195, 151, 41, BLUE);
+            }
+          }
+          else if (requestDrawMenuLevel == 3) {
+            tft.drawLine(64, 233, 214, 233, BLUE);
+            tft.drawLine(64, 234, 214, 234, BLUE);
+            tft.drawLine(64, 235, 214, 235, BLUE);
+          }
+
+        requestMenuPaint = false;
+        xSemaphoreGive(xTFTSemaphore);
+      }
+    }
+
+   
     //void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String spriteName, String value,
     //String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y)
     if (vaaWasUpdated) {
