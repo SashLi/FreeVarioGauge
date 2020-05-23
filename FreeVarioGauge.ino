@@ -140,7 +140,7 @@ void setup() {
 
   // set starting count value
   Vario_Enc.setCount(16380);
-  Vario_Enc.attachHalfQuad(32, 23);
+  Vario_Enc.attachHalfQuad(23, 32);
   pinMode(VE_PB, INPUT_PULLUP);
 
   // Note the format for setting a serial port is as follows: Serial2.begin(baud-rate, protocol, RX pin, TX pin);
