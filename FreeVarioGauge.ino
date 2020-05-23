@@ -29,12 +29,12 @@
 ESP32Encoder Vario_Enc;
 
 #define BLACK   0x0000
-#define BLUE    0x001F
-#define RED     0x9806
+#define RED     0x001F
+#define BLUE    0x9806
 #define GREEN   0x07E0
-#define CYAN    0x07FF
+#define CYAN    0xFFE0
 #define MAGENTA 0xF81F
-#define YELLOW  0xFFE0
+#define YELLOW  0x07FF
 #define WHITE   0xFFFF
 #define GREY    0x632c
 #define RXD2 16
@@ -48,7 +48,6 @@ ESP32Encoder Vario_Enc;
 #define xCenter 160
 #define yCenter 160
 
-//HardwareSerial Serial(2);
 static TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite nameOfField = TFT_eSprite(&tft);
 TFT_eSprite infoLarge = TFT_eSprite(&tft);
@@ -58,16 +57,15 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
-
 const String SOFTWARE_VERSION = "  V1.0 - 2020";
 
-static String mod;                                     //aktueller Modus
-static String mce;                                     //NMEA-String zum Setzen des externen McCready-Wertes
+static String mod;              
+static String mce;                             
 static String nameSetting = "QNH";
 static String nameSpeed = "GS";
 static String nameHight = "MSL";
-static String valueSetting, valueSpeed, valueHight;              //Wert zum jeweiligen Menüpunkt
-static String unitSpeed, unitHight, unitSetting;              //Einheit zum jeweiligen Menüpunkt
+static String valueSetting, valueSpeed, valueHight;  
+static String unitSpeed, unitHight, unitSetting;     
 static String stf_mode;
 static String valueQnhAsString = "1013";
 static String valueBugAsString = "0";
@@ -84,15 +82,15 @@ static String menuValueColor = "WHITE";
 extern uint16_t logoOV[];
 
 static float var = 0;
-static float valueVaaAsFloat = 0;      //Variowert, gemittelter Variowert
+static float valueVaaAsFloat = 0;      
 static float valueTasAsFloat = 0;
-static float valueGrsAsFloat = 0;     //True Airspeed, Grundspeed
-static float valueMacAsFloat = 0.5;          //MacCready-Wert
+static float valueGrsAsFloat = 0;       
+static float valueMacAsFloat = 0.5;    
 static float valueHagAsFloat = 0;
-static float valueHigAsFloat = 0;     //Höhe über Grund, Höhe MSL
-static float tem = 0;          //Temperatur
+static float valueHigAsFloat = 0;       
+static float tem = 0;              
 
-static double stf = 0;               //Speed to Fly
+static double stf = 0;        
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
 
@@ -108,6 +106,9 @@ static bool qnhWasUpdated = true;
 static bool bugWasUpdated = true;
 static bool stfModeWasUpdate = true;
 
+bool showBootscreen = true;
+bool mci = false;  
+
 int stf_mode_state;
 
 int spriteNameWidthSpeed, spriteValueWidthSpeed, spriteunitWidthSpeed;
@@ -118,12 +119,7 @@ int startAngle, segmentDraw, segmentCountOld, segmentCount;
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
 static bool requestMenuPaint = false;
-
-bool showBootscreen = true;
-bool V_PB_active = false;
-bool V_PB_Longpressactive = false;
-bool mci = false;     //interner McCready gesetzt worden?
-bool screenFilled = true;
+static bool requestMenuFontPaint = false;
 
 static unsigned long lastTimeBoot = 0;
 static unsigned long lastTimeReady = 0;
@@ -154,7 +150,6 @@ void setup() {
 
   xTaskCreate(SerialScan, "Serial Scan", 1000, NULL, 50, &SerialScanTask);
   xTaskCreate(EncoderReader, "Encoder Task", 5000, NULL, 80, &TaskEncoder);
-  //xTaskCreate(ArcRefresh, "Arc Refresh", 5000, NULL, 100, &ArcRefreshTask);
   xTaskCreate(ValueRefresh, "Value Refresh", 5000, NULL, 40, &TaskValueRefresh);
 
 }
@@ -165,7 +160,6 @@ void loop() {
     showBootScreen(SOFTWARE_VERSION, tft);
   } else {
     ArcRefresh();
-
   }
 }
 
@@ -216,7 +210,6 @@ void showBootScreen(String versionString, TFT_eSPI tftIN) {
   bootSprite.unloadFont();
   tftIN.fillScreen(BLACK);
   lastTimeReady = millis();
-  //tftIN.fillCircle(xCenter, yCenter, InnerRadius, BLACK);
   showBootscreen = false;
 }
 
@@ -233,9 +226,10 @@ void EncoderReader(void *p) {
   const int MENU_VALUE_QNH = 1;
   const int MENU_VALUE_BUG = 2;
 
-  long encoderPosition = -999;
+  float encoderPosition = (float) - 999;
+
   long pushButtonPressTime = NOT_SET;
-  float menuActiveSince = 0; // Will be updated in menu run
+  float menuActiveSince = 0;                  // Will be updated in menu run
 
   bool pushButtonPressed = false;
   bool pushButtonIsLongpress = false;
@@ -245,7 +239,6 @@ void EncoderReader(void *p) {
 
   int selectedMenu = MENU_SPEED_TYP;
   int selectedLevelTwoMenu = MENU_VALUE_QNH;
-
   while (true) {
     // READ ENCODER & BUTTONS / DIPS
 
@@ -262,6 +255,9 @@ void EncoderReader(void *p) {
     else if (encoderPositionNew < encoderPosition) {
       encoderLeft = true;
       encoderWasMoved = true;
+    }
+    else {
+      encoderWasMoved = false;
     }
     encoderPosition = encoderPositionNew;
 
@@ -345,9 +341,8 @@ void EncoderReader(void *p) {
       menuActiveSince = millis(); // set time to now
       // Wait for release of pushButton
       while (digitalRead(VE_PB) == LOW) {}
-      menuSpeedColor = "BLUE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
+      setDrawMenuLevel(selectedMenu, 1);
+      requestFontRepaint();
     }
 
     else if (!pushButtonIsLongpress && !pushButtonPressed && !menuWasTriggered && !subMenuTriggered && !subMenuLevelTwoTriggered && encoderWasMoved) {
@@ -357,40 +352,16 @@ void EncoderReader(void *p) {
     else if (!pushButtonIsLongpress && !pushButtonPressed && menuWasTriggered && !subMenuTriggered && encoderWasMoved) {
 
       if (selectedMenu == MENU_SPEED_TYP) {
-        menuSpeedColor = "BLUE";
-        menuHightColor = "WHITE";
-        menuValueColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
-        menuSpeedColor = "WHITE";
-        menuHightColor = "BLUE";
-        menuValueColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        menuValueColor = "BLUE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       menuActiveSince = millis(); // set time to now
     }
@@ -400,19 +371,19 @@ void EncoderReader(void *p) {
       if (selectedMenu == MENU_SPEED_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_SPEED_TYP, 2);
+        DrawMenu(selectedMenu, 2);
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_HIGHT_TYP, 2);
+        DrawMenu(selectedMenu, 2);;
 
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
         settingStartValueType();
-        DrawMenu(MENU_VALUE_TYP, 2);
+        DrawMenu(selectedMenu, 2);
       }
       menuActiveSince = millis(); // set time to now
     }
@@ -436,30 +407,15 @@ void EncoderReader(void *p) {
       if (selectedMenu == MENU_SPEED_TYP || selectedMenu  == MENU_HIGHT_TYP) {
         subMenuTriggered = false;
         selectedMenu = MENU_SPEED_TYP;
-        DrawMenu(0, 0);
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
+        setDrawMenuLevel(selectedMenu, 0);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuActiveSince = millis(); // set time to now
         subMenuTriggered = false;
         subMenuLevelTwoTriggered = true;
-        DrawMenu(0, 0);
-        DrawMenu(3, 3);
-        menuSpeedColor = "WHITE";
-        menuHightColor = "WHITE";
-        menuValueColor = "BLUE";
-        tasWasUpdated = true;
-        grsWasUpdated = true;
-        hagWasUpdated = true;
-        higWasUpdated = true;
-        mcWasUpdated = true;
-        qnhWasUpdated = true;
-        bugWasUpdated = true;
+        setDrawMenuLevel(selectedMenu, 3);
+        requestFontRepaint();
       }
     }
 
@@ -474,35 +430,8 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
-    }
-
-    // check run time in menu and exit if time > 10000
-    if ((millis() - menuActiveSince) > 10000 && menuWasTriggered) {
-      menuWasTriggered = false;
-      subMenuTriggered = false;
-      subMenuLevelTwoTriggered = false;
-      DrawMenu(0, 0);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
 
     // check run time in menu and exit if time > 10000
@@ -510,67 +439,50 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
     else if ((millis() - menuActiveSince) > 10000 && subMenuTriggered) {
       subMenuTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
     else if ((millis() - menuActiveSince) > 10000 && menuWasTriggered) {
       menuWasTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0);
-      menuSpeedColor = "WHITE";
-      menuHightColor = "WHITE";
-      menuValueColor = "WHITE";
-      tasWasUpdated = true;
-      grsWasUpdated = true;
-      hagWasUpdated = true;
-      higWasUpdated = true;
-      mcWasUpdated = true;
-      qnhWasUpdated = true;
-      bugWasUpdated = true;
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
-    vTaskDelay(50);
+
+    //vTaskDelay(50);
   }
 }
 
 void DrawMenu(int selectedMenuNumber, int level) {
 
+  setDrawMenuLevel(selectedMenuNumber, level);
+  requestMenuPaint = true;
+  requestMenuFontPaint = true;
+
+}
+
+void setDrawMenuLevel(int selectedMenuNumber, int level) {
   requestDrawMenu = selectedMenuNumber;
   requestDrawMenuLevel = level;
-  requestMenuPaint = true;
+}
 
+void requestFontRepaint() {
+  requestMenuFontPaint = true;
 }
 
 void changeMCvalue(bool mcUp) {
   if (mci == true) {
     mce = ("$PFV,M,S," + String((float)valueMacAsFloat) + "*");
     int checksum = calculateChecksum(mce);
-    Serial2.printf("%s%X\n", mce.c_str(), checksum); //MCE auf Wert von MCI setzen
+    Serial2.printf("%s%X\n", mce.c_str(), checksum); //set MCE to MCI
     mci = false;
   }
   if (mcUp) {
@@ -630,7 +542,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     valueQnhAsString = dtostrf(valueQnhAsFloat, 4, 0, buf);
     qnhWasUpdated = true;
-    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum); //QNH in XCSoar schreiben
+    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar 
   }
   if (nameSetting == "Bug") {
     if (changeLevelTwoValue && valueBugAsFloat < 50) {
@@ -645,7 +557,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
     bugWasUpdated = true;
-    Serial2.printf("%s%X\n", bugStr.c_str(), checksum); //Mückenwert in XCSoar schreiben
+    Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar 
   }
 }
 
@@ -677,7 +589,6 @@ void ArcRefresh() {
 }
 
 void ValueRefresh(void *parameter) {
-  //void ValueRefresh() {
 
   while (showBootscreen) {
     vTaskDelay(1000);
@@ -696,57 +607,54 @@ void ValueRefresh(void *parameter) {
       valueSpeed = valueTasAsString;
     }
 
-    if (requestMenuPaint){
+    if (requestMenuPaint) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-            if (requestDrawMenuLevel == 0) {
-            tft.drawRect(47, 111, 166, 37, BLACK);
-            tft.drawRect(46, 110, 168, 39, BLACK);
-            tft.drawRect(45, 109, 170, 41, BLACK);
-        
-            tft.drawRect(65, 154, 148, 37, BLACK);
-            tft.drawRect(64, 153, 150, 39, BLACK);
-            tft.drawRect(63, 152, 152, 41, BLACK);
-        
-            tft.drawRect(66, 197, 147, 37, BLACK);
-            tft.drawRect(65, 196, 149, 39, BLACK);
-            tft.drawRect(64, 195, 151, 41, BLACK);
-          }
-          else if (requestDrawMenuLevel == 2) {
-            if (requestDrawMenu == 1) {
-              tft.drawRect(47, 111, 166, 37, BLUE);
-              tft.drawRect(46, 110, 168, 39, BLUE);
-              tft.drawRect(45, 109, 170, 41, BLUE);
-            }
-        
-            if (requestDrawMenu == 2) {
-              tft.drawRect(65, 154, 148, 37, BLUE);
-              tft.drawRect(64, 153, 150, 39, BLUE);
-              tft.drawRect(63, 152, 152, 41, BLUE);
-            }
-        
-            if (requestDrawMenu == 3) {
-              tft.drawRect(66, 197, 147, 37, BLUE);
-              tft.drawRect(65, 196, 149, 39, BLUE);
-              tft.drawRect(64, 195, 151, 41, BLUE);
-            }
-          }
-          else if (requestDrawMenuLevel == 3) {
-            tft.drawRect(66, 197, 147, 37, BLACK);
-            tft.drawRect(65, 196, 149, 39, BLACK);
-            tft.drawRect(64, 195, 151, 41, BLACK);
-            
-            tft.drawLine(64, 233, 214, 233, BLUE);
-            tft.drawLine(64, 234, 214, 234, BLUE);
-            tft.drawLine(64, 235, 214, 235, BLUE);
+        if (requestDrawMenuLevel == 0) {
+          tft.drawRect(47, 111, 166, 37, BLACK);
+          tft.drawRect(46, 110, 168, 39, BLACK);
+          tft.drawRect(45, 109, 170, 41, BLACK);
+
+          tft.drawRect(65, 154, 148, 37, BLACK);
+          tft.drawRect(64, 153, 150, 39, BLACK);
+          tft.drawRect(63, 152, 152, 41, BLACK);
+
+          tft.drawRect(66, 197, 147, 37, BLACK);
+          tft.drawRect(65, 196, 149, 39, BLACK);
+          tft.drawRect(64, 195, 151, 41, BLACK);
+        }
+        else if (requestDrawMenuLevel == 2) {
+          if (requestDrawMenu == 1) {
+            tft.drawRect(47, 111, 166, 37, RED);
+            tft.drawRect(46, 110, 168, 39, RED);
+            tft.drawRect(45, 109, 170, 41, RED);
           }
 
-        requestMenuPaint = false;
+          if (requestDrawMenu == 2) {
+            tft.drawRect(65, 154, 148, 37, RED);
+            tft.drawRect(64, 153, 150, 39, RED);
+            tft.drawRect(63, 152, 152, 41, RED);
+          }
+
+          if (requestDrawMenu == 3) {
+            tft.drawRect(66, 197, 147, 37, RED);
+            tft.drawRect(65, 196, 149, 39, RED);
+            tft.drawRect(64, 195, 151, 41, RED);
+          }
+        }
+        else if (requestDrawMenuLevel == 3) {
+          tft.drawRect(66, 197, 147, 37, BLACK);
+          tft.drawRect(65, 196, 149, 39, BLACK);
+          tft.drawRect(64, 195, 151, 41, BLACK);
+
+          tft.drawLine(64, 233, 214, 233, RED);
+          tft.drawLine(64, 234, 214, 234, RED);
+          tft.drawLine(64, 235, 214, 235, RED);
+        }
         xSemaphoreGive(xTFTSemaphore);
       }
     }
 
-   
     //void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String spriteName, String value,
     //String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y)
     if (vaaWasUpdated) {
@@ -757,31 +665,46 @@ void ValueRefresh(void *parameter) {
         xSemaphoreGive(xTFTSemaphore);
       }
     }
-    if (tasWasUpdated || grsWasUpdated) {
+    if (tasWasUpdated || grsWasUpdated || requestMenuFontPaint ) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 1) || (requestDrawMenuLevel == 2 ) && (requestDrawMenu == 1)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        }
         tasWasUpdated = false;
         grsWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
 
-    if (hagWasUpdated || higWasUpdated) {
+    if (hagWasUpdated || higWasUpdated || requestMenuFontPaint) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, WHITE, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 2) || (requestDrawMenuLevel == 2 ) && (requestDrawMenu == 2)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        }
         hagWasUpdated = false;
         higWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
 
-    if (nameSetting == "MC" && mcWasUpdated) {
+    if (nameSetting == "MC" && (mcWasUpdated || requestFontRepaint)) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueMacAsString;
-        DrawInfo(nameOfField, infoSmall, WHITE, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        }
         mcWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -790,7 +713,12 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueQnhAsString;
-        DrawInfo(nameOfField, infoSmall, WHITE, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        }
         qnhWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -799,7 +727,12 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueBugAsString;
-        DrawInfo(nameOfField, infoSmall, WHITE, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        }
         bugWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -813,7 +746,12 @@ void ValueRefresh(void *parameter) {
         xSemaphoreGive(xTFTSemaphore);
       }
     }
+
     vTaskDelay(9);
+  }
+  if (requestMenuPaint) {
+    requestMenuPaint = false;
+    requestMenuFontPaint = false;
   }
 }
 
@@ -830,9 +768,9 @@ void SerialScan (void *p) {
         while (serialString != 10) {
           dataString += serialString;
           serialString = Serial2.read();
-          if (dataString.length() > 200) {
+          if (dataString.length() > 300) {
             dataString = "ERROR";
-            //Serial.println("Break serial Read!");
+            Serial.println("Break serial Read!");
             break;
           }
         }
@@ -854,7 +792,7 @@ void SerialScan (void *p) {
       float wertAsFloat = wert.toFloat();                   // der Wert als float
 
       //
-      //Analyse des Steigwertes
+      //analyse vertical speed
       //
 
 
@@ -866,7 +804,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des mittleren Steigens
+      //analyse average vertical speed
       //
       else if (variable == "VAA") {
         if (valueVaaAsFloat !=  wertAsFloat) {
@@ -886,7 +824,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des internen McCready-Wertes
+      //analyse internal McCready value
       //
       else if (variable == "MCI") {
 
@@ -901,7 +839,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des externen McCready-Wertes
+      //analyse external McCready value
       //
       else if ((variable == "MCE") && (mci == false)) {
         if (valueMacAsFloat !=  wertAsFloat) {
@@ -914,21 +852,21 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des aktuellen Modus
+      //analyse current flight mode
       //
       else if (variable == "MOD") {
         mod = wert;
       }
 
       //
-      //Analyse Speed to Fly
+      //analyse speed to fly
       //
       else if (variable == "STF") {
         stf = wert.toFloat();
       }
 
       //
-      //Analyse der true Airspeed
+      //analyse true airspeed
       //
       else if (variable == "TAS") {
 
@@ -942,7 +880,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Groundspeed
+      //analyse groundspeed
       //
       else if (variable == "GRS") {
         if (valueGrsAsFloat != wertAsFloat) {
@@ -955,7 +893,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse der Höhe MSL
+      //analyse hight MSL
       //
       else if (variable == "HIG") {
         if (valueHigAsFloat != wertAsFloat) {
@@ -968,7 +906,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse der Höhe über Grund
+      //analyse hight about ground level
       //
       else if (variable == "HAG") {
         if (valueHagAsFloat != wertAsFloat) {
@@ -981,7 +919,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Temperatur
+      //analyse temperatur
       //
       else if (variable == "TEM") {
         if (tem != wertAsFloat) {
@@ -991,7 +929,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse QNH
+      //analyse QNH
       //
       else if (variable == "QNH") {
         if (valueQnhAsFloat != wertAsFloat) {
@@ -1002,7 +940,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Mücken
+      //analyse bug
       //
       else if (variable == "BUG") {
         if (valueBugAsFloat != wertAsFloat) {
@@ -1012,42 +950,14 @@ void SerialScan (void *p) {
         valueBugAsString = wert;
       }
     }
-    /*
-            ///zum Testen, später rausnehmen
-            valueGrsAsFloat = 133;
-            valueGrsAsString = "133";
-            stf = 90;
-            valueTasAsFloat = 105;
-            valueTasAsString = "305";
-            valueBugAsFloat = 0;
-            valueBugAsString = "0";
-            valueQnhAsFloat = 1010;
-            valueQnhAsString = "1010";
-
-            valueMacAsString = "5.0";
-
-            valueMacAsFloat = 2.723;
-            valueMacAsFloat = valueMacAsFloat * 10;
-            int i = valueMacAsFloat;
-            valueMacAsFloat = i / 10.0;
-
-            valueHigAsFloat = 3345;
-            valueHigAsString = "3345";
-            valueHagAsFloat = 1000;
-            valueHagAsString = "1000";
-            var = 3.9;
-            valueVaaAsFloat = 3.0;
-            valueVaaAsString = "3.0";
-            //Ende zum Testen, später rausnehmen
-    */
     dataString = "";
     vTaskDelay(20);
   }
 }
 
-//************************************
-//****  Berechnen der Checksumme  ****
-//************************************
+//********************************
+//****  calculate Checksumme  ****
+//********************************
 int calculateChecksum(String mce) {
   int i, XOR, c;
   for (XOR = 0, i = 0; i < mce.length(); i++) {
@@ -1200,7 +1110,7 @@ void DrawArc(float inangle, float liftValue, double speedToFly, float trueAirSpe
     startAngle = 270 + (3 * segmentCountOld);
     //startAngle = 270;
     segmentDraw = segmentCount - segmentCountOld;
-    color = BLUE;
+    color = RED;
     segmentCountOld = segmentCount;
   }
 
