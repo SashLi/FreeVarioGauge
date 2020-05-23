@@ -206,7 +206,7 @@ void showBootScreen(String versionString, TFT_eSPI tftIN) {
         dataString = "";
       }
     }
-  } while (serial2IsReady == 1);
+  } while (serial2IsReady == 0);
   bootSprite.unloadFont();
   tftIN.fillScreen(BLACK);
   lastTimeReady = millis();
@@ -779,7 +779,7 @@ void SerialScan (void *p) {
       }
     }
 
-    if (dataString.startsWith("$PFV") || dataString.startsWith("$POV")) {
+    if (dataString.startsWith("$PFV")) {
       //Serial2.println(DataString);
       int pos = dataString.indexOf(',');
       dataString.remove(0, pos + 1);
@@ -794,7 +794,7 @@ void SerialScan (void *p) {
       //
 
 
-      if (variable == "VAR" || variable == "E") {
+      if (variable == "VAR") {
         if (var !=  wertAsFloat) {
           varWasUpdated = true;
         }
