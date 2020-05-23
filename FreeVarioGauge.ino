@@ -456,8 +456,6 @@ void EncoderReader(void *p) {
       setDrawMenuLevel(selectedMenu, 0);
       requestFontRepaint();
     }
-
-    //vTaskDelay(50);
   }
 }
 
@@ -747,7 +745,7 @@ void ValueRefresh(void *parameter) {
       }
     }
 
-    vTaskDelay(9);
+    vTaskDelay(15);
   }
   if (requestMenuPaint) {
     requestMenuPaint = false;
