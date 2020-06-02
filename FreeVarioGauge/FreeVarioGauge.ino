@@ -29,12 +29,12 @@
 ESP32Encoder Vario_Enc;
 
 #define BLACK   0x0000
-#define BLUE    0x001F
-#define RED     0x9806
+#define RED     0x001F
+#define BLUE    0x9806
 #define GREEN   0x07E0
-#define CYAN    0x07FF
+#define CYAN    0xFFE0
 #define MAGENTA 0xF81F
-#define YELLOW  0xFFE0
+#define YELLOW  0x07FF
 #define WHITE   0xFFFF
 #define GREY    0x632c
 #define RXD2 16
@@ -48,7 +48,6 @@ ESP32Encoder Vario_Enc;
 #define xCenter 160
 #define yCenter 160
 
-//HardwareSerial Serial(2);
 static TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite nameOfField = TFT_eSprite(&tft);
 TFT_eSprite infoLarge = TFT_eSprite(&tft);
@@ -58,16 +57,15 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
+const String SOFTWARE_VERSION = "  V1.0 - 2020";
 
-const String SOFTWARE_VERSION = "  V1.0 May 2020";
-
-static String mod;                                     //aktueller Modus
-static String mce;                                     //NMEA-String zum Setzen des externen McCready-Wertes
+static String mod;              
+static String mce;                             
 static String nameSetting = "QNH";
 static String nameSpeed = "GS";
 static String nameHight = "MSL";
-static String valueSetting, valueSpeed, valueHight;              //Wert zum jeweiligen Menüpunkt
-static String unitSpeed, unitHight, unitSetting;              //Einheit zum jeweiligen Menüpunkt
+static String valueSetting, valueSpeed, valueHight;  
+static String unitSpeed, unitHight, unitSetting;     
 static String stf_mode;
 static String valueQnhAsString = "1013";
 static String valueBugAsString = "0";
@@ -77,19 +75,22 @@ static String valueVaaAsString = "0.0";
 static String valueHigAsString = "0";
 static String valueHagAsString = "0";
 static String valueMacAsString = "0.0";
+static String menuSpeedColor = "WHITE";
+static String menuHightColor = "WHITE";
+static String menuValueColor = "WHITE";
 
 extern uint16_t logoOV[];
 
 static float var = 0;
-static float valueVaaAsFloat = 0;      //Variowert, gemittelter Variowert
+static float valueVaaAsFloat = 0;      
 static float valueTasAsFloat = 0;
-static float valueGrsAsFloat = 0;     //True Airspeed, Grundspeed
-static float valueMacAsFloat = 0.5;          //MacCready-Wert
+static float valueGrsAsFloat = 0;       
+static float valueMacAsFloat = 0.5;    
 static float valueHagAsFloat = 0;
-static float valueHigAsFloat = 0;     //Höhe über Grund, Höhe MSL
-static float tem = 0;          //Temperatur
+static float valueHigAsFloat = 0;       
+static float tem = 0;              
 
-static double stf = 0;               //Speed to Fly
+static double stf = 0;        
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
 
@@ -105,28 +106,20 @@ static bool qnhWasUpdated = true;
 static bool bugWasUpdated = true;
 static bool stfModeWasUpdate = true;
 
+bool showBootscreen = true;
+bool mci = false;  
+
 int stf_mode_state;
-int countMenu = 0;
-int CountSubmenuValue = 0;
-int CountSubmenuSpeed = 0;
-int CountSubmenuHeight = 0;
-int SpeedMenu = 0;
-int HeightMenu = 0;
+
 int spriteNameWidthSpeed, spriteValueWidthSpeed, spriteunitWidthSpeed;
 int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 
-long count_PB = 0;
-long oldPositionValue  = -999;
-long oldPositionmenu  = -999;
-long leavedMenu = 0;
-
-bool showBootscreen = true;
-bool V_PB_active = false;
-bool V_PB_Longpressactive = false;
-bool mci = false;     //interner McCready gesetzt worden?
-bool screenFilled = true;
+static int requestDrawMenu = 0;
+static int requestDrawMenuLevel = 0;
+static bool requestMenuPaint = false;
+static bool requestMenuFontPaint = false;
 
 static unsigned long lastTimeBoot = 0;
 static unsigned long lastTimeReady = 0;
@@ -147,7 +140,7 @@ void setup() {
 
   // set starting count value
   Vario_Enc.setCount(16380);
-  Vario_Enc.attachHalfQuad(32, 23);
+  Vario_Enc.attachHalfQuad(23, 32);
   pinMode(VE_PB, INPUT_PULLUP);
 
   // Note the format for setting a serial port is as follows: Serial2.begin(baud-rate, protocol, RX pin, TX pin);
@@ -157,7 +150,6 @@ void setup() {
 
   xTaskCreate(SerialScan, "Serial Scan", 1000, NULL, 50, &SerialScanTask);
   xTaskCreate(EncoderReader, "Encoder Task", 5000, NULL, 80, &TaskEncoder);
-  //xTaskCreate(ArcRefresh, "Arc Refresh", 5000, NULL, 100, &ArcRefreshTask);
   xTaskCreate(ValueRefresh, "Value Refresh", 5000, NULL, 40, &TaskValueRefresh);
 
 }
@@ -168,7 +160,6 @@ void loop() {
     showBootScreen(SOFTWARE_VERSION, tft);
   } else {
     ArcRefresh();
-
   }
 }
 
@@ -215,11 +206,10 @@ void showBootScreen(String versionString, TFT_eSPI tftIN) {
         dataString = "";
       }
     }
-  } while (serial2IsReady == 1);
+  } while (serial2IsReady == 0);
   bootSprite.unloadFont();
   tftIN.fillScreen(BLACK);
   lastTimeReady = millis();
-  //tftIN.fillCircle(xCenter, yCenter, InnerRadius, BLACK);
   showBootscreen = false;
 }
 
@@ -236,9 +226,10 @@ void EncoderReader(void *p) {
   const int MENU_VALUE_QNH = 1;
   const int MENU_VALUE_BUG = 2;
 
-  long encoderPosition = -999;
+  float encoderPosition = (float) - 999;
+
   long pushButtonPressTime = NOT_SET;
-  float menuActiveSince = 0; // Will be updated in menu run
+  float menuActiveSince = 0;                  // Will be updated in menu run
 
   bool pushButtonPressed = false;
   bool pushButtonIsLongpress = false;
@@ -248,7 +239,6 @@ void EncoderReader(void *p) {
 
   int selectedMenu = MENU_SPEED_TYP;
   int selectedLevelTwoMenu = MENU_VALUE_QNH;
-
   while (true) {
     // READ ENCODER & BUTTONS / DIPS
 
@@ -258,8 +248,6 @@ void EncoderReader(void *p) {
     long encoderPositionNew = Vario_Enc.getCount();
     long timeSystemRuns = millis() - lastTimeBoot;
 
-    TaskHandle_t blinkMenuHandler;
-
     if (encoderPositionNew > encoderPosition) {
       encoderRight = true;
       encoderWasMoved = true;
@@ -267,6 +255,9 @@ void EncoderReader(void *p) {
     else if (encoderPositionNew < encoderPosition) {
       encoderLeft = true;
       encoderWasMoved = true;
+    }
+    else {
+      encoderWasMoved = false;
     }
     encoderPosition = encoderPositionNew;
 
@@ -348,10 +339,10 @@ void EncoderReader(void *p) {
     if (pushButtonIsLongpress && !pushButtonPressed && !menuWasTriggered && !subMenuTriggered && !encoderWasMoved && timeSystemRuns > TIME_SINCE_BOOT) {
       menuWasTriggered = true;
       menuActiveSince = millis(); // set time to now
-      DrawMenu(selectedMenu, 1, tft);
       // Wait for release of pushButton
       while (digitalRead(VE_PB) == LOW) {}
-      xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
+      setDrawMenuLevel(selectedMenu, 1);
+      requestFontRepaint();
     }
 
     else if (!pushButtonIsLongpress && !pushButtonPressed && !menuWasTriggered && !subMenuTriggered && !subMenuLevelTwoTriggered && encoderWasMoved) {
@@ -359,47 +350,40 @@ void EncoderReader(void *p) {
     }
 
     else if (!pushButtonIsLongpress && !pushButtonPressed && menuWasTriggered && !subMenuTriggered && encoderWasMoved) {
-      if (blinkMenuHandler != NULL) {
-        vTaskDelete(blinkMenuHandler);
-      }
 
       if (selectedMenu == MENU_SPEED_TYP) {
-        DrawMenu(MENU_SPEED_TYP, 1, tft);
-        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
-        DrawMenu(MENU_HIGHT_TYP, 1, tft);
-        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
-        DrawMenu(MENU_VALUE_TYP, 1, tft);
-        xTaskCreate(MenuBlink, "Menu Blink", 5000, (void*)&selectedMenu, 40, &blinkMenuHandler);
+        setDrawMenuLevel(selectedMenu, 1);
+        requestFontRepaint();
       }
       menuActiveSince = millis(); // set time to now
     }
     else if (menuWasTriggered && !subMenuTriggered && !pushButtonIsLongpress && pushButtonPressed) {
       // Wait for release of pushButton
       while (digitalRead(VE_PB) == LOW) {}
-      if (blinkMenuHandler != NULL) {
-        vTaskDelete(blinkMenuHandler);
-      }
-
       if (selectedMenu == MENU_SPEED_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_SPEED_TYP, 2, tft);
+        DrawMenu(selectedMenu, 2);
       }
       else if (selectedMenu == MENU_HIGHT_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
-        DrawMenu(MENU_HIGHT_TYP, 2, tft);
+        DrawMenu(selectedMenu, 2);;
 
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuWasTriggered = false;
         subMenuTriggered = true;
         settingStartValueType();
-        DrawMenu(MENU_VALUE_TYP, 2, tft);
+        DrawMenu(selectedMenu, 2);
       }
       menuActiveSince = millis(); // set time to now
     }
@@ -423,14 +407,15 @@ void EncoderReader(void *p) {
       if (selectedMenu == MENU_SPEED_TYP || selectedMenu  == MENU_HIGHT_TYP) {
         subMenuTriggered = false;
         selectedMenu = MENU_SPEED_TYP;
-        DrawMenu(0, 0, tft);
+        setDrawMenuLevel(selectedMenu, 0);
+        requestFontRepaint();
       }
       else if (selectedMenu == MENU_VALUE_TYP) {
         menuActiveSince = millis(); // set time to now
         subMenuTriggered = false;
         subMenuLevelTwoTriggered = true;
-        DrawMenu(0, 0, tft);
-        DrawMenu(3, 3, tft);
+        setDrawMenuLevel(selectedMenu, 3);
+        requestFontRepaint();
       }
     }
 
@@ -445,15 +430,8 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
-    }
-
-    // check run time in menu and exit if time > 10000
-    if ((millis() - menuActiveSince) > 10000 && menuWasTriggered) {
-      menuWasTriggered = false;
-      subMenuTriggered = false;
-      subMenuLevelTwoTriggered = false;
-      DrawMenu(0, 0, tft);
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
 
     // check run time in menu and exit if time > 10000
@@ -461,151 +439,48 @@ void EncoderReader(void *p) {
       subMenuLevelTwoTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
     else if ((millis() - menuActiveSince) > 10000 && subMenuTriggered) {
       subMenuTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
     else if ((millis() - menuActiveSince) > 10000 && menuWasTriggered) {
       menuWasTriggered = false;
       settingStandardValueType();
       selectedMenu = MENU_SPEED_TYP;
-      DrawMenu(0, 0, tft);
-    }
-    vTaskDelay(50);
-  }
-}
-
-void MenuBlink(void *parameter) {
-  long startBlink = millis();
-  int selectedMenu = *((int*)parameter);
-
-  if (selectedMenu == 1) {
-    while (true) {
-      tft.drawRect(47, 111, 166, 37, WHITE);
-      tft.drawRect(46, 110, 168, 39, WHITE);
-      tft.drawRect(45, 109, 170, 41, WHITE);
-      vTaskDelay(600);
-      tft.drawRect(47, 111, 166, 37, BLACK);
-      tft.drawRect(46, 110, 168, 39, BLACK);
-      tft.drawRect(45, 109, 170, 41, BLACK);
-      vTaskDelay(600);
-      if ( (millis() - startBlink) > 10000 ) {
-        vTaskDelete(NULL);
-      }
-    }
-  }
-  else if (selectedMenu == 2) {
-    while (true) {
-      tft.drawRect(65, 154, 148, 37, WHITE);
-      tft.drawRect(64, 153, 150, 39, WHITE);
-      tft.drawRect(63, 152, 152, 41, WHITE);
-      vTaskDelay(600);
-      tft.drawRect(65, 154, 148, 37, BLACK);
-      tft.drawRect(64, 153, 150, 39, BLACK);
-      tft.drawRect(63, 152, 152, 41, BLACK);
-      vTaskDelay(600);
-      if ( (millis() - startBlink) > 10000 ) {
-        vTaskDelete(NULL);
-      }
-    }
-  }
-  else if (selectedMenu == 3) {
-    while (true) {
-      tft.drawRect(66, 197, 147, 37, WHITE);
-      tft.drawRect(65, 196, 149, 39, WHITE);
-      tft.drawRect(64, 195, 151, 41, WHITE);
-      vTaskDelay(600);
-      tft.drawRect(66, 197, 147, 37, BLACK);
-      tft.drawRect(65, 196, 149, 39, BLACK);
-      tft.drawRect(64, 195, 151, 41, BLACK);
-      vTaskDelay(600);
-      if ( (millis() - startBlink) > 10000 ) {
-        vTaskDelete(NULL);
-      }
+      setDrawMenuLevel(selectedMenu, 0);
+      requestFontRepaint();
     }
   }
 }
 
-void DrawMenu(int selectedMenuNumber, int level, TFT_eSPI tftIN) {
+void DrawMenu(int selectedMenuNumber, int level) {
 
-  if (level == 0) {
-    tftIN.drawRect(47, 111, 166, 37, BLACK);
-    tftIN.drawRect(46, 110, 168, 39, BLACK);
-    tftIN.drawRect(45, 109, 170, 41, BLACK);
+  setDrawMenuLevel(selectedMenuNumber, level);
+  requestMenuPaint = true;
+  requestMenuFontPaint = true;
 
-    tftIN.drawRect(65, 154, 148, 37, BLACK);
-    tftIN.drawRect(64, 153, 150, 39, BLACK);
-    tftIN.drawRect(63, 152, 152, 41, BLACK);
+}
 
-    tftIN.drawRect(66, 197, 147, 37, BLACK);
-    tftIN.drawRect(65, 196, 149, 39, BLACK);
-    tftIN.drawRect(64, 195, 151, 41, BLACK);
-  }
+void setDrawMenuLevel(int selectedMenuNumber, int level) {
+  requestDrawMenu = selectedMenuNumber;
+  requestDrawMenuLevel = level;
+}
 
-  else if (level == 1) {
-    tftIN.drawRect(47, 111, 166, 37, BLACK);
-    tftIN.drawRect(46, 110, 168, 39, BLACK);
-    tftIN.drawRect(45, 109, 170, 41, BLACK);
-
-    tftIN.drawRect(65, 154, 148, 37, BLACK);
-    tftIN.drawRect(64, 153, 150, 39, BLACK);
-    tftIN.drawRect(63, 152, 152, 41, BLACK);
-
-    tftIN.drawRect(66, 197, 147, 37, BLACK);
-    tftIN.drawRect(65, 196, 149, 39, BLACK);
-    tftIN.drawRect(64, 195, 151, 41, BLACK);
-
-    if (selectedMenuNumber == 1) {
-      tftIN.drawRect(47, 111, 166, 37, WHITE);
-      tftIN.drawRect(46, 110, 168, 39, WHITE);
-      tftIN.drawRect(45, 109, 170, 41, WHITE);
-    }
-    else if (selectedMenuNumber == 2) {
-      tftIN.drawRect(65, 154, 148, 37, WHITE);
-      tftIN.drawRect(64, 153, 150, 39, WHITE);
-      tftIN.drawRect(63, 152, 152, 41, WHITE);
-    }
-    else if (selectedMenuNumber == 3) {
-      tftIN.drawRect(66, 197, 147, 37, WHITE);
-      tftIN.drawRect(65, 196, 149, 39, WHITE);
-      tftIN.drawRect(64, 195, 151, 41, WHITE);
-    }
-  }
-  else if (level == 2) {
-    if (selectedMenuNumber == 1) {
-      tftIN.drawRect(47, 111, 166, 37, WHITE);
-      tftIN.drawRect(46, 110, 168, 39, WHITE);
-      tftIN.drawRect(45, 109, 170, 41, WHITE);
-    }
-
-    if (selectedMenuNumber == 2) {
-      tftIN.drawRect(65, 154, 148, 37, WHITE);
-      tftIN.drawRect(64, 153, 150, 39, WHITE);
-      tftIN.drawRect(63, 152, 152, 41, WHITE);
-    }
-
-    if (selectedMenuNumber == 3) {
-      tftIN.drawRect(66, 197, 147, 37, WHITE);
-      tftIN.drawRect(65, 196, 149, 39, WHITE);
-      tftIN.drawRect(64, 195, 151, 41, WHITE);
-    }
-  }
-  else if (level == 3) {
-    tftIN.drawLine(64, 233, 214, 233, WHITE);
-    tftIN.drawLine(64, 234, 214, 234, WHITE);
-    tftIN.drawLine(64, 235, 214, 235, WHITE);
-  }
+void requestFontRepaint() {
+  requestMenuFontPaint = true;
 }
 
 void changeMCvalue(bool mcUp) {
   if (mci == true) {
     mce = ("$PFV,M,S," + String((float)valueMacAsFloat) + "*");
     int checksum = calculateChecksum(mce);
-    Serial2.printf("%s%X\n", mce.c_str(), checksum); //MCE auf Wert von MCI setzen
+    Serial2.printf("%s%X\n", mce.c_str(), checksum); //set MCE to MCI
     mci = false;
   }
   if (mcUp) {
@@ -653,26 +528,34 @@ void changeValueOption () {
 
 void changeLevelTwoMenu (bool changeLevelTwoValue) {
   if (nameSetting == "QNH") {
-    if (changeLevelTwoValue) {
+    if (changeLevelTwoValue && valueQnhAsFloat < 1300) {
       valueQnhAsFloat = valueQnhAsFloat + 1;
     }
-    else {
+    else if (!changeLevelTwoValue && valueQnhAsFloat > 850) {
       valueQnhAsFloat = valueQnhAsFloat - 1;
     }
     String qnhStr = ("$PFV,Q,S," + String(valueQnhAsFloat) + "*");
     int checksum = calculateChecksum(qnhStr);
-    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum); //QNH in XCSoar schreiben
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    valueQnhAsString = dtostrf(valueQnhAsFloat, 4, 0, buf);
+    qnhWasUpdated = true;
+    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar 
   }
   if (nameSetting == "Bug") {
-    if (changeLevelTwoValue) {
+    if (changeLevelTwoValue && valueBugAsFloat < 50) {
       valueBugAsFloat = valueBugAsFloat + 1;
     }
-    else {
+    else if (!changeLevelTwoValue && valueBugAsFloat > 0) {
       valueBugAsFloat = valueBugAsFloat - 1;
     }
     String bugStr = ("$PFV,B,S," + String(valueBugAsFloat) + "*");
     int checksum = calculateChecksum(bugStr);
-    Serial2.printf("%s%X\n", bugStr.c_str(), checksum); //Mückenwert in XCSoar schreiben
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
+    bugWasUpdated = true;
+    Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar 
   }
 }
 
@@ -704,7 +587,6 @@ void ArcRefresh() {
 }
 
 void ValueRefresh(void *parameter) {
-  //void ValueRefresh() {
 
   while (showBootscreen) {
     vTaskDelay(1000);
@@ -723,42 +605,104 @@ void ValueRefresh(void *parameter) {
       valueSpeed = valueTasAsString;
     }
 
+    if (requestMenuPaint) {
+      if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+      {
+        if (requestDrawMenuLevel == 0) {
+          tft.drawRect(47, 111, 166, 37, BLACK);
+          tft.drawRect(46, 110, 168, 39, BLACK);
+          tft.drawRect(45, 109, 170, 41, BLACK);
+
+          tft.drawRect(65, 154, 148, 37, BLACK);
+          tft.drawRect(64, 153, 150, 39, BLACK);
+          tft.drawRect(63, 152, 152, 41, BLACK);
+
+          tft.drawRect(66, 197, 147, 37, BLACK);
+          tft.drawRect(65, 196, 149, 39, BLACK);
+          tft.drawRect(64, 195, 151, 41, BLACK);
+        }
+        else if (requestDrawMenuLevel == 2) {
+          if (requestDrawMenu == 1) {
+            tft.drawRect(47, 111, 166, 37, RED);
+            tft.drawRect(46, 110, 168, 39, RED);
+            tft.drawRect(45, 109, 170, 41, RED);
+          }
+
+          if (requestDrawMenu == 2) {
+            tft.drawRect(65, 154, 148, 37, RED);
+            tft.drawRect(64, 153, 150, 39, RED);
+            tft.drawRect(63, 152, 152, 41, RED);
+          }
+
+          if (requestDrawMenu == 3) {
+            tft.drawRect(66, 197, 147, 37, RED);
+            tft.drawRect(65, 196, 149, 39, RED);
+            tft.drawRect(64, 195, 151, 41, RED);
+          }
+        }
+        else if (requestDrawMenuLevel == 3) {
+          tft.drawRect(66, 197, 147, 37, BLACK);
+          tft.drawRect(65, 196, 149, 39, BLACK);
+          tft.drawRect(64, 195, 151, 41, BLACK);
+
+          tft.drawLine(64, 233, 214, 233, RED);
+          tft.drawLine(64, 234, 214, 234, RED);
+          tft.drawLine(64, 235, 214, 235, RED);
+        }
+        xSemaphoreGive(xTFTSemaphore);
+      }
+    }
+
     //void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String spriteName, String value,
     //String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y)
     if (vaaWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoLarge, "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
+        DrawInfo(nameOfField, infoLarge, WHITE, "large", "Avg.", valueVaaAsString, "", 34, 40, 94, 0, 78, 60);
         vaaWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
-
-    if (tasWasUpdated || grsWasUpdated) {
+    if (tasWasUpdated || grsWasUpdated || requestMenuFontPaint ) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 1) || (requestDrawMenuLevel == 2 ) && (requestDrawMenu == 1)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", nameSpeed, valueSpeed, "km/h", 28, 25, 57, 68, 53, 118);
+        }
         tasWasUpdated = false;
         grsWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
 
-    if (hagWasUpdated || higWasUpdated) {
+    if (hagWasUpdated || higWasUpdated || requestMenuFontPaint) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 2) || (requestDrawMenuLevel == 2 ) && (requestDrawMenu == 2)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", nameHight, valueHight, "m", 31, 25, 74, 29, 72, 161);
+        }
         hagWasUpdated = false;
         higWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
 
-    if (nameSetting == "MC" && mcWasUpdated) {
+    if (nameSetting == "MC" && (mcWasUpdated || requestFontRepaint)) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueMacAsString;
-        DrawInfo(nameOfField, infoSmall, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        if ((requestDrawMenuLevel == 1 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "MC", valueSetting, "m/s", 24, 25, 56, 53, 73, 204);
+        }
         mcWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -767,7 +711,12 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueQnhAsString;
-        DrawInfo(nameOfField, infoSmall, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "QNH", valueSetting, "", 50, 25, 82, 1, 73, 204);
+        }
         qnhWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -776,7 +725,12 @@ void ValueRefresh(void *parameter) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
         valueSetting = valueBugAsString;
-        DrawInfo(nameOfField, infoSmall, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        }
         bugWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
@@ -785,12 +739,17 @@ void ValueRefresh(void *parameter) {
     if (stfModeWasUpdate) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
-        DrawInfo(nameOfField, infoSmall, "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
+        DrawInfo(nameOfField, infoSmall, WHITE, "small", "Mode", stf_mode, "", 41, 25, 70, 0, 95, 248);
         stfModeWasUpdate = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
-    vTaskDelay(9);
+
+    vTaskDelay(15);
+  }
+  if (requestMenuPaint) {
+    requestMenuPaint = false;
+    requestMenuFontPaint = false;
   }
 }
 
@@ -807,9 +766,9 @@ void SerialScan (void *p) {
         while (serialString != 10) {
           dataString += serialString;
           serialString = Serial2.read();
-          if (dataString.length() > 200) {
+          if (dataString.length() > 300) {
             dataString = "ERROR";
-            //Serial.println("Break serial Read!");
+            Serial.println("Break serial Read!");
             break;
           }
         }
@@ -820,7 +779,7 @@ void SerialScan (void *p) {
       }
     }
 
-    if (dataString.startsWith("$PFV") || dataString.startsWith("$POV")) {
+    if (dataString.startsWith("$PFV")) {
       //Serial2.println(DataString);
       int pos = dataString.indexOf(',');
       dataString.remove(0, pos + 1);
@@ -831,11 +790,11 @@ void SerialScan (void *p) {
       float wertAsFloat = wert.toFloat();                   // der Wert als float
 
       //
-      //Analyse des Steigwertes
+      //analyse vertical speed
       //
 
 
-      if (variable == "VAR" || variable == "E") {
+      if (variable == "VAR") {
         if (var !=  wertAsFloat) {
           varWasUpdated = true;
         }
@@ -843,7 +802,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des mittleren Steigens
+      //analyse average vertical speed
       //
       else if (variable == "VAA") {
         if (valueVaaAsFloat !=  wertAsFloat) {
@@ -863,7 +822,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des internen McCready-Wertes
+      //analyse internal McCready value
       //
       else if (variable == "MCI") {
 
@@ -878,7 +837,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des externen McCready-Wertes
+      //analyse external McCready value
       //
       else if ((variable == "MCE") && (mci == false)) {
         if (valueMacAsFloat !=  wertAsFloat) {
@@ -891,21 +850,21 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse des aktuellen Modus
+      //analyse current flight mode
       //
       else if (variable == "MOD") {
         mod = wert;
       }
 
       //
-      //Analyse Speed to Fly
+      //analyse speed to fly
       //
       else if (variable == "STF") {
         stf = wert.toFloat();
       }
 
       //
-      //Analyse der true Airspeed
+      //analyse true airspeed
       //
       else if (variable == "TAS") {
 
@@ -919,7 +878,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Groundspeed
+      //analyse groundspeed
       //
       else if (variable == "GRS") {
         if (valueGrsAsFloat != wertAsFloat) {
@@ -932,7 +891,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse der Höhe MSL
+      //analyse hight MSL
       //
       else if (variable == "HIG") {
         if (valueHigAsFloat != wertAsFloat) {
@@ -945,7 +904,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse der Höhe über Grund
+      //analyse hight about ground level
       //
       else if (variable == "HAG") {
         if (valueHagAsFloat != wertAsFloat) {
@@ -958,7 +917,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Temperatur
+      //analyse temperatur
       //
       else if (variable == "TEM") {
         if (tem != wertAsFloat) {
@@ -968,7 +927,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse QNH
+      //analyse QNH
       //
       else if (variable == "QNH") {
         if (valueQnhAsFloat != wertAsFloat) {
@@ -979,7 +938,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //Analyse Mücken
+      //analyse bug
       //
       else if (variable == "BUG") {
         if (valueBugAsFloat != wertAsFloat) {
@@ -989,42 +948,14 @@ void SerialScan (void *p) {
         valueBugAsString = wert;
       }
     }
-    /*
-            ///zum Testen, später rausnehmen
-            valueGrsAsFloat = 133;
-            valueGrsAsString = "133";
-            stf = 90;
-            valueTasAsFloat = 105;
-            valueTasAsString = "305";
-            valueBugAsFloat = 0;
-            valueBugAsString = "0";
-            valueQnhAsFloat = 1010;
-            valueQnhAsString = "1010";
-
-            valueMacAsString = "5.0";
-
-            valueMacAsFloat = 2.723;
-            valueMacAsFloat = valueMacAsFloat * 10;
-            int i = valueMacAsFloat;
-            valueMacAsFloat = i / 10.0;
-
-            valueHigAsFloat = 3345;
-            valueHigAsString = "3345";
-            valueHagAsFloat = 1000;
-            valueHagAsString = "1000";
-            var = 3.9;
-            valueVaaAsFloat = 3.0;
-            valueVaaAsString = "3.0";
-            //Ende zum Testen, später rausnehmen
-    */
     dataString = "";
     vTaskDelay(20);
   }
 }
 
-//************************************
-//****  Berechnen der Checksumme  ****
-//************************************
+//********************************
+//****  calculate Checksumme  ****
+//********************************
 int calculateChecksum(String mce) {
   int i, XOR, c;
   for (XOR = 0, i = 0; i < mce.length(); i++) {
@@ -1177,7 +1108,7 @@ void DrawArc(float inangle, float liftValue, double speedToFly, float trueAirSpe
     startAngle = 270 + (3 * segmentCountOld);
     //startAngle = 270;
     segmentDraw = segmentCount - segmentCountOld;
-    color = BLUE;
+    color = RED;
     segmentCountOld = segmentCount;
   }
 
@@ -1222,11 +1153,11 @@ void DrawArc(float inangle, float liftValue, double speedToFly, float trueAirSpe
 //***********************************
 //**** Draw ValueBoxes and Data  ****
 //***********************************
-void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
+void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, uint32_t color, String infoType, String spriteName, String value, String unit, int spriteNameWidth, int spriteValueHight, int spriteValueWidth, int spriteunitWidth, int x, int y) {
   fontOfName.loadFont("micross15");
   fontOfName.createSprite(spriteNameWidth, 25);
   fontOfName.setCursor(0, 2);
-  fontOfName.setTextColor(WHITE, BLACK);
+  fontOfName.setTextColor(color, BLACK);
   fontOfName.setTextSize(2);
   fontOfName.println(spriteName);
   fontOfName.pushSprite(x, y);
@@ -1240,7 +1171,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String infoType, S
     fontOfInfo.loadFont("micross50");
   }
   fontOfInfo.createSprite(spriteValueWidth, spriteValueHight);
-  fontOfInfo.setTextColor(WHITE, BLACK);
+  fontOfInfo.setTextColor(color, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(value, spriteValueWidth, 2);
@@ -1248,7 +1179,7 @@ void DrawInfo(TFT_eSprite fontOfName, TFT_eSprite fontOfInfo, String infoType, S
   fontOfInfo.deleteSprite();
 
   fontOfInfo.createSprite(spriteunitWidth, 25);
-  fontOfInfo.setTextColor(WHITE, BLACK);
+  fontOfInfo.setTextColor(color, BLACK);
   fontOfInfo.setTextSize(3);
   fontOfInfo.setTextDatum(TR_DATUM);
   fontOfInfo.drawString(unit, spriteunitWidth, 2);
