@@ -59,13 +59,13 @@ SemaphoreHandle_t xTFTSemaphore;
 
 const String SOFTWARE_VERSION = "  V1.0 - 2020";
 
-static String mod;              
-static String mce;                             
+static String mod;
+static String mce;
 static String nameSetting = "QNH";
 static String nameSpeed = "GS";
 static String nameHight = "MSL";
-static String valueSetting, valueSpeed, valueHight;  
-static String unitSpeed, unitHight, unitSetting;     
+static String valueSetting, valueSpeed, valueHight;
+static String unitSpeed, unitHight, unitSetting;
 static String stf_mode;
 static String valueQnhAsString = "1013";
 static String valueBugAsString = "0";
@@ -82,15 +82,15 @@ static String menuValueColor = "WHITE";
 extern uint16_t logoOV[];
 
 static float var = 0;
-static float valueVaaAsFloat = 0;      
+static float valueVaaAsFloat = 0;
 static float valueTasAsFloat = 0;
-static float valueGrsAsFloat = 0;       
-static float valueMacAsFloat = 0.5;    
+static float valueGrsAsFloat = 0;
+static float valueMacAsFloat = 0.5;
 static float valueHagAsFloat = 0;
-static float valueHigAsFloat = 0;       
-static float tem = 0;              
+static float valueHigAsFloat = 0;
+static float tem = 0;
 
-static double stf = 0;        
+static double stf = 0;
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
 
@@ -107,7 +107,7 @@ static bool bugWasUpdated = true;
 static bool stfModeWasUpdate = true;
 
 bool showBootscreen = true;
-bool mci = false;  
+bool mci = false;
 
 int stf_mode_state;
 
@@ -540,7 +540,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     valueQnhAsString = dtostrf(valueQnhAsFloat, 4, 0, buf);
     qnhWasUpdated = true;
-    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar 
+    Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar
   }
   if (nameSetting == "Bug") {
     if (changeLevelTwoValue && valueBugAsFloat < 50) {
@@ -555,7 +555,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
     bugWasUpdated = true;
-    Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar 
+    Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar
   }
 }
 
@@ -930,7 +930,7 @@ void SerialScan (void *p) {
       //analyse QNH
       //
       else if (variable == "QNH") {
-        if (valueQnhAsFloat != wertAsFloat) {
+        if ((valueQnhAsFloat != wertAsFloat) && (wertAsFloat < 2000)) {
           qnhWasUpdated = true;
         }
         valueQnhAsFloat = wertAsFloat;
