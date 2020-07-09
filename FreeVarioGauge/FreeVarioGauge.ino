@@ -201,7 +201,7 @@ void showBootScreen(String versionString, TFT_eSPI tftIN) {
           serialString = Serial2.read();
         }
       }
-      if (dataString.startsWith("$PFV") || dataString.startsWith("$POV")) {
+      if (dataString.startsWith("$PFV")) {
         serial2IsReady = 1;
         dataString = "";
       }
@@ -774,6 +774,7 @@ void SerialScan (void *p) {
         }
         if (timeSystemReady < 2000) {
           Serial2.println("$PFV,M,S,0.5*59");
+          Serial2.println("$PFV,Q,S,1013*6D");
         }
         //Serial.println(dataString);
       }
