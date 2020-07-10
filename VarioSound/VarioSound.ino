@@ -84,7 +84,7 @@ float calculateNewFreq(float newValue, float oldValue) {
     freqValue = (350 + (120 * newValue));
   }
   else if (digitalRead(STF_MODE) == LOW && (newValue < 0) && (newValue > -8) && (newValue != oldValue)) {
-    freqValue = (350 / (1 - (0.85 * newValue)));
+    freqValue = (350 / (1 - (0.1 * newValue)));
   }
   else if (digitalRead(STF_MODE) == LOW && (newValue > 8) && (newValue != oldValue)) {
     freqValue = 1310;
@@ -244,7 +244,7 @@ void Sound(void *) {
     else if (digitalRead(STF_MODE) == HIGH && sf > 0.5) {
       float startTimePulse = millis();
       float pulseTime = 0;
-      while (pulseTime < 20) {
+      while (pulseTime < calculatePulse(sf)) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
         while (i < 8 && freqValueNeg < 0) {
@@ -257,7 +257,7 @@ void Sound(void *) {
         pulseTime = millis() - startTimePulse;
       }
       do  {
-        calculateNewFreq(var, varOld);
+        calculateNewFreq(sf, sfOld);
         int  i = 0;
         while (i < 8) {
           i = i + 1;
@@ -266,10 +266,10 @@ void Sound(void *) {
         }
         gen.ApplySignal(SINE_WAVE, REG0, freqValue);
         pulseTime = millis() - startTimePulse;
-      } while (pulseTime < (calculatePulse(var) + 20));
+      } while (pulseTime < (calculatePulse(sf) + 20));
     }
     else if (digitalRead(STF_MODE) == HIGH && sf < -0.5) {
-      calculateNewFreq(var, varOld);
+      calculateNewFreq(sf, sfOld);
       int  i = 0;
       while (i < 8) {
         i = i + 1;
