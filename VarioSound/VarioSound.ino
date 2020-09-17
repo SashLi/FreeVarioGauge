@@ -17,6 +17,7 @@
 #define STF_MODE 13
 #define STF_AUTO 33
 #define XC_WK 14                      //Automatikmodus durch Wölbklappen oder XCSoar; Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
+#define PTT 27                        //VarioSound aus durch Drücken des Funkknopfes; Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
 #define RXD1 32
 #define TXD1 33
 #define RXD2 16
@@ -84,7 +85,7 @@ float calculateNewFreq(float newValue, float oldValue) {
     freqValue = (350 + (120 * newValue));
   }
   else if (digitalRead(STF_MODE) == LOW && (newValue < 0) && (newValue > -8) && (newValue != oldValue)) {
-    freqValue = (350 / (1 - (0.1 * newValue)));
+    freqValue = (350 / (1 - (0.85 * newValue)));
   }
   else if (digitalRead(STF_MODE) == LOW && (newValue > 8) && (newValue != oldValue)) {
     freqValue = 1310;
@@ -113,6 +114,7 @@ void setup() {
   pinMode(STF_MODE, OUTPUT);
   pinMode(STF_AUTO, OUTPUT);
   pinMode(XC_WK, INPUT_PULLUP);
+  pinMode(PTT, INPUT_PULLUP);
   pinMode(Varioschalter, INPUT_PULLUP);
   pinMode(STFSchalter, INPUT_PULLUP);
   pinMode(STFAuto, INPUT_PULLUP);
@@ -203,8 +205,10 @@ void loop() {
 void Sound(void *) {
   while (true) {
     sf = (tas - stf) / 10;
-
-    if (digitalRead(STF_MODE) == LOW && var > 0.5) {
+    if (digitalRead(PTT) == LOW) {
+      gen.ApplySignal(SINE_WAVE, REG0, 0);
+    }
+    else if (digitalRead(STF_MODE) == LOW && var > 0.5) {
       float startTimePulse = millis();
       float pulseTime = 0;
       while (pulseTime < calculatePulse(var)) {
@@ -244,7 +248,7 @@ void Sound(void *) {
     else if (digitalRead(STF_MODE) == HIGH && sf > 0.5) {
       float startTimePulse = millis();
       float pulseTime = 0;
-      while (pulseTime < calculatePulse(sf)) {
+      while (pulseTime < 20) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
         while (i < 8 && freqValueNeg < 0) {
@@ -257,7 +261,7 @@ void Sound(void *) {
         pulseTime = millis() - startTimePulse;
       }
       do  {
-        calculateNewFreq(sf, sfOld);
+        calculateNewFreq(var, varOld);
         int  i = 0;
         while (i < 8) {
           i = i + 1;
@@ -266,10 +270,10 @@ void Sound(void *) {
         }
         gen.ApplySignal(SINE_WAVE, REG0, freqValue);
         pulseTime = millis() - startTimePulse;
-      } while (pulseTime < (calculatePulse(sf) + 20));
+      } while (pulseTime < (calculatePulse(var) + 20));
     }
     else if (digitalRead(STF_MODE) == HIGH && sf < -0.5) {
-      calculateNewFreq(sf, sfOld);
+      calculateNewFreq(var, varOld);
       int  i = 0;
       while (i < 8) {
         i = i + 1;
