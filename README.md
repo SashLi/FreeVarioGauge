@@ -1,5 +1,9 @@
 # FreeVarioGauge
 
+IMPORTANT - PTT and mute function
+
+If you want to use the FreeVario's mute function, you need to have at least the FreeVario image from 20295 installed on your OpenVario. In addition, at least firmware V.1.1.1 must be installed on the sound board as well as on the display board. If you are using the sound board with the 3-pin connector on the back, but without the diode D1, a small change has to be made here. Please write me about this by email (dirk@freevario.de).
+
 The FreeVario is an open source e-variometer that works together with the XCSoar software. It shows the mean climb (30s), 
 the height above sea level (MSL) or the height above ground (AGL), the ground speed (GS) or tue airspeed (TAS), the MC, 
 QNH or bug value. MC, QNH, or bug value can be set via the menu and the rotary encoder, and are then passed on 

@@ -57,7 +57,7 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
-const String SOFTWARE_VERSION = "  V1.1 - 2020";
+const String SOFTWARE_VERSION = "  V1.1.1 - 2020";
 
 static String mod;
 static String mce;
@@ -69,6 +69,7 @@ static String unitSpeed, unitHight, unitSetting;
 static String stf_mode;
 static String valueQnhAsString = "1013";
 static String valueBugAsString = "0";
+static String valueMuteAsString = "ON";
 static String valueGrsAsString = "0";
 static String valueTasAsString = "0";
 static String valueVaaAsString = "0.0";
@@ -104,6 +105,7 @@ static bool higWasUpdated = true;
 static bool tempWasUpdated = true;
 static bool qnhWasUpdated = true;
 static bool bugWasUpdated = true;
+static bool muteWasUpdated = true;
 static bool stfModeWasUpdate = true;
 
 bool showBootscreen = true;
@@ -115,6 +117,7 @@ int spriteNameWidthSpeed, spriteValueWidthSpeed, spriteunitWidthSpeed;
 int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
+int valueMuteAsInt = 1;
 
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
@@ -225,6 +228,7 @@ void EncoderReader(void *p) {
 
   const int MENU_VALUE_QNH = 1;
   const int MENU_VALUE_BUG = 2;
+  const int MENU_VALUE_MUTE = 3;
 
   float encoderPosition = (float) - 999;
 
@@ -394,8 +398,11 @@ void EncoderReader(void *p) {
       else if (selectedMenu == MENU_HIGHT_TYP) {
         changeHighOption();
       }
-      else if (selectedMenu == MENU_VALUE_TYP) {
-        changeValueOption();
+      else if (selectedMenu == MENU_VALUE_TYP && encoderRight ) {
+        changeValueOptionRight();
+      }
+      else if (selectedMenu == MENU_VALUE_TYP && encoderLeft ) {
+        changeValueOptionLeft();
       }
       menuActiveSince = millis(); // set time to now
     }
@@ -421,6 +428,7 @@ void EncoderReader(void *p) {
 
     else if (!menuWasTriggered && !subMenuTriggered && !pushButtonIsLongpress  && !pushButtonPressed && subMenuLevelTwoTriggered && encoderWasMoved) {
       changeLevelTwoMenu(encoderRight);
+      changeLevelTwoMenuTurn(encoderWasMoved);
       menuActiveSince = millis(); // set time to now
     }
 
@@ -515,17 +523,36 @@ void changeHighOption () {
   }
 }
 
-void changeValueOption () {
+void changeValueOptionRight () {
+  if ( nameSetting == "Bug") {
+    nameSetting = "Mute";
+    muteWasUpdated = true;
+  }
+  else if ( nameSetting == "QNH") {
+    nameSetting = "Bug";
+    bugWasUpdated = true;
+  }
+  else if ( nameSetting == "Mute") {
+    nameSetting = "QNH";
+    qnhWasUpdated = true;
+  }
+}
+
+
+void changeValueOptionLeft () {
   if ( nameSetting == "Bug") {
     nameSetting = "QNH";
     qnhWasUpdated = true;
   }
-  else {
+  else if ( nameSetting == "QNH") {
+    nameSetting = "Mute";
+    muteWasUpdated = true;
+  }
+  else if ( nameSetting == "Mute") {
     nameSetting = "Bug";
     bugWasUpdated = true;
   }
 }
-
 void changeLevelTwoMenu (bool changeLevelTwoValue) {
   if (nameSetting == "QNH") {
     if (changeLevelTwoValue && valueQnhAsFloat < 1300) {
@@ -556,6 +583,24 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
     bugWasUpdated = true;
     Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar
+  }
+}
+void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
+  if (nameSetting == "Mute") {
+    if (changeLevelTwoMenuTurn && valueMuteAsInt == 1) {
+      valueMuteAsInt = 0;
+      valueMuteAsString = "OFF";
+    }
+    else if (changeLevelTwoMenuTurn && valueMuteAsInt == 0) {
+      valueMuteAsInt = 1;
+      valueMuteAsString = "ON";
+    }
+    String muteStr = ("$PFV,S,S," + String(valueMuteAsInt) + "*");
+    int checksum = calculateChecksum(muteStr);
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    muteWasUpdated = true;
+    Serial2.printf("%s%X\n", muteStr.c_str(), checksum);
   }
 }
 
@@ -730,6 +775,20 @@ void ValueRefresh(void *parameter) {
         }
         else {
           DrawInfo(nameOfField, infoSmall, WHITE, "small", "Bug", valueSetting, "%", 39, 25, 63, 31, 73, 204);
+        }
+        bugWasUpdated = false;
+        xSemaphoreGive(xTFTSemaphore);
+      }
+    }
+    else if (nameSetting == "Mute" && muteWasUpdated) {
+      if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+      {
+        valueSetting = valueMuteAsString;
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "Mute", valueSetting, "", 39, 25, 63, 31, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "Mute", valueSetting, "", 39, 25, 63, 31, 73, 204);
         }
         bugWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
@@ -947,6 +1006,14 @@ void SerialScan (void *p) {
         }
         valueBugAsFloat = wertAsFloat;
         valueBugAsString = wert;
+      }
+
+      //
+      //analyse Mute
+      //
+      else if (variable == "MUT") {
+        muteWasUpdated = true;
+        valueMuteAsInt = wert.toInt();
       }
     }
     dataString = "";
