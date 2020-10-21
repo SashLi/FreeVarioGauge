@@ -36,6 +36,7 @@ const int STFAuto = 19;             //Wölbklappenanschluss; Taster an GND ansch
 float stf = 0;           //Speed to Fly Wert
 
 String mod;           //aktueller Modus
+int valueMuteAsInt = 1;  //Mute ueber PTT ist aktiv
 
 bool error = false;
 
@@ -177,6 +178,13 @@ void loop() {
       if (variable == "STF") {
         stf = wert.toFloat();
       }
+
+      //
+      //analyse Mute
+      //
+      else if (variable == "MUT") {
+        valueMuteAsInt = wert.toInt();
+      }
     }
     DataString = "";
     vTaskDelay(20);
@@ -205,7 +213,7 @@ void loop() {
 void Sound(void *) {
   while (true) {
     sf = (tas - stf) / 10;
-    if (digitalRead(PTT) == LOW) {
+    if (digitalRead(PTT) == LOW && valueMuteAsInt ) {
       gen.ApplySignal(SINE_WAVE, REG0, 0);
     }
     else if (digitalRead(STF_MODE) == LOW && var > 0.5) {
