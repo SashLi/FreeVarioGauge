@@ -16,27 +16,27 @@
 
 #define STF_MODE 13
 #define STF_AUTO 33
-#define XC_WK 14                      //Automatikmodus durch Wölbklappen oder XCSoar; Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
-#define PTT 27                        //VarioSound aus durch Drücken des Funkknopfes; Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
+#define XC_WK 14                      // Automatic mode through flaps or XCSoar; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
+#define PTT 27                        // VarioSound off by pressing the radio button; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 #define RXD1 32
 #define TXD1 33
 #define RXD2 16
-#define TXD2 -1 // -1 means it not used beacause of trouble with Dispolay-ESP32. Set TXD2 to 17 if you like to use
-#define FNC_PIN 4       // Can be any digital IO pin
+#define TXD2 -1                       // -1 means it not used beacause of trouble with Dispolay-ESP32. Set TXD2 to 17 if you like to use
+#define FNC_PIN 4                     // Can be any digital IO pin
 
-#include <AD9833.h>     // Include the library
-AD9833 gen(FNC_PIN);       // Defaults to 25MHz internal reference frequency
+#include <AD9833.h>                   // Include the library
+AD9833 gen(FNC_PIN);                  // Defaults to 25MHz internal reference frequency
 
 TaskHandle_t SoundTask;
 
-const int Varioschalter = 15;        //Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
-const int STFSchalter = 5;          //Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen
-const int STFAuto = 19;             //Wölbklappenanschluss; Taster an GND anschließen, 10 kOhm Pullup-Widerstand zw. 3,3V und Pin anschließen´
+const int Varioschalter = 15;         // Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
+const int STFSchalter = 5;            // Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
+const int STFAuto = 19;               // Flap connection; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin´
 
-float stf = 0;           //Speed to Fly Wert
+float stf = 0;                        // Speed to Fly value
 
-String mod;           //aktueller Modus
-int valueMuteAsInt = 1;  //Mute ueber PTT ist aktiv
+String mod;                           // current mode
+int valueMuteAsInt = 1;               // mute via PTT is active
 
 bool error = false;
 
@@ -53,6 +53,10 @@ float errorFreq = 1000;
 long pulseStarts = 0;
 long pulsEnds = 0;
 
+
+/////////////////////
+// function to calculate pulse length
+/////////////////////
 float calculatePulse(float liftIn) {
   float calculatedPulseLength = 0;
   if (digitalRead(STF_MODE) == LOW) {
@@ -81,6 +85,9 @@ float calculatePulse(float liftIn) {
   }
 }
 
+/////////////////////
+// function to calculate frequency
+/////////////////////
 float calculateNewFreq(float newValue, float oldValue) {
   if (digitalRead(STF_MODE) == LOW && (newValue >= 0) && (newValue < 8) && (newValue != oldValue)) {
     freqValue = (350 + (120 * newValue));
@@ -92,13 +99,13 @@ float calculateNewFreq(float newValue, float oldValue) {
     freqValue = 1310;
   }
   else if (digitalRead(STF_MODE) == HIGH && (newValue >= 0) && (newValue < 8) && (newValue != oldValue)) {
-    freqValue = (350 + (30 * newValue));
+    freqValue = (350 + (120 * newValue));
   }
   else if (digitalRead(STF_MODE) == HIGH && (newValue < 0) && (newValue > -8) && (newValue != oldValue)) {
     freqValue = (350 / (1 - (0.1 * newValue)));
   }
   else if (digitalRead(STF_MODE) == HIGH && (newValue > 8) && (newValue != oldValue)) {
-    freqValue = 600;
+    freqValue = 1310;
   }
   freqValueInc = (freqValue - freqValueOld) / 8;
   freqValueOld = freqValue;
@@ -110,8 +117,8 @@ void setup() {
   Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
   gen.Begin();
   gen.ApplySignal(SINE_WAVE, REG0, freqValueOld);
-  gen.EnableOutput(true);   // Turn ON the output - it defaults to OFF
-  AD9833 gen(FNC_PIN);       // Defaults to 25MHz internal reference frequency
+  gen.EnableOutput(true);             // Turn ON the output - it defaults to OFF
+  AD9833 gen(FNC_PIN);                // Defaults to 25MHz internal reference frequency
   pinMode(STF_MODE, OUTPUT);
   pinMode(STF_AUTO, OUTPUT);
   pinMode(XC_WK, INPUT_PULLUP);
@@ -131,6 +138,10 @@ void loop() {
   stfAuto_state = digitalRead(STFAuto);
   xc_WK_state = digitalRead(XC_WK);
 
+
+  /////////////////////
+  // read serial port
+  /////////////////////
   char Data;
   String DataString;
   if (Serial2.available()) {
@@ -146,42 +157,47 @@ void loop() {
       //Serial2.println(DataString);
       int pos = DataString.indexOf(',');
       DataString.remove(0, pos + 1);
-      int pos1 = DataString.indexOf(',');                //findet den Ort des ersten ,
-      String variable = DataString.substring(0, pos1);      //erfasst den ersten Datensatz
-      int pos2 = DataString.indexOf('*', pos1 + 1 );     //findet den Ort des *
-      String wert = DataString.substring(pos1 + 1, pos2);   //erfasst den zweiten Datensatz
+      int pos1 = DataString.indexOf(',');                   //finds the place of the first,
+      String variable = DataString.substring(0, pos1);      //captures the first record
+      int pos2 = DataString.indexOf('*', pos1 + 1 );        //finds the place of *
+      String wert = DataString.substring(pos1 + 1, pos2);   //captures the second record
 
-      //
-      //Analyse des Steigwertes
-      //
+
+      /////////////////////
+      // Analysis of the climb rate
+      /////////////////////
       if (variable == "VAR") {
         var = wert.toFloat();
       }
 
-      //
-      //Analyse des aktuellen Modus
-      //
+
+      /////////////////////
+      // Analysis of the current mode
+      /////////////////////
       if (variable == "MOD") {
         mod = wert;
       }
 
-      //
-      //Analyse der true Airspeed
-      //
+
+      /////////////////////
+      // Analysis of the true airspeed
+      /////////////////////
       if (variable == "TAS") {
         tas = wert.toFloat();
       }
 
-      //
-      //Analyse Speed to Fly
-      //
+
+      /////////////////////
+      // Analysis of speed to fly
+      /////////////////////
       if (variable == "STF") {
         stf = wert.toFloat();
       }
 
-      //
-      //analyse Mute
-      //
+
+      /////////////////////
+      // Analysis Mute
+      /////////////////////
       else if (variable == "MUT") {
         valueMuteAsInt = wert.toInt();
       }
@@ -190,6 +206,10 @@ void loop() {
     vTaskDelay(20);
   }
 
+
+  /////////////////////
+  // Analysis automatic mode
+  /////////////////////
   if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
       ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 1) && (mod == "C"))) {
     digitalWrite(STF_MODE, LOW);
@@ -213,9 +233,19 @@ void loop() {
 void Sound(void *) {
   while (true) {
     sf = (tas - stf) / 10;
+
+
+    /////////////////////
+    // mute function using PTT
+    /////////////////////
     if (digitalRead(PTT) == LOW && valueMuteAsInt ) {
       gen.ApplySignal(SINE_WAVE, REG0, 0);
     }
+
+
+    /////////////////////
+    // calculate Vario sound
+    /////////////////////
     else if (digitalRead(STF_MODE) == LOW && var > 0.5) {
       float startTimePulse = millis();
       float pulseTime = 0;
@@ -253,43 +283,41 @@ void Sound(void *) {
       }
       gen.ApplySignal(SINE_WAVE, REG0, freqValue);
     }
-    else if (digitalRead(STF_MODE) == HIGH && sf > 0.5) {
+
+
+    /////////////////////
+    // calculate STF sound
+    /////////////////////
+    else if (digitalRead(STF_MODE) == HIGH && ((sf > 0.5) || (sf < -0.5))) {
       float startTimePulse = millis();
       float pulseTime = 0;
-      while (pulseTime < calculatePulse(sf)) {
-        freqValueNeg = (-1 * freqValueOld) / 8;
-        int  i = 0;
-        while (i < 8 && freqValueNeg < 0) {
-          i = i + 1;
-          gen.IncrementFrequency (REG0, freqValueNeg);
-          delay(1);
+      while (pulseTime < 750) {
+        while ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
+          freqValueNeg = (-1 * freqValueOld) / 8;
+          int  i = 0;
+          while (i < 8 && freqValueNeg < 0) {
+            i = i + 1;
+            gen.IncrementFrequency (REG0, freqValueNeg);
+            delay(1);
+          }
+          gen.ApplySignal(SINE_WAVE, REG0, 0);
+          freqValueOld = 0;
+          pulseTime = millis() - startTimePulse;
         }
-        gen.ApplySignal(SINE_WAVE, REG0, 0);
-        freqValueOld = 0;
-        pulseTime = millis() - startTimePulse;
-      }
-      do  {
-        calculateNewFreq(sf, sfOld);
-        int  i = 0;
-        while (i < 8) {
-          i = i + 1;
-          gen.IncrementFrequency (REG0, freqValueInc);
-          delay(1);
-        }
-        gen.ApplySignal(SINE_WAVE, REG0, freqValue);
-        pulseTime = millis() - startTimePulse;
-      } while (pulseTime < (calculatePulse(sf) + 20));
+        do  {
+          calculateNewFreq(sf, sfOld);
+          int  i = 0;
+          while (i < 8) {
+            i = i + 1;
+            gen.IncrementFrequency (REG0, freqValueInc);
+            delay(1);
+          }
+          gen.ApplySignal(SINE_WAVE, REG0, freqValue);
+          pulseTime = millis() - startTimePulse;
+        } while (pulseTime < 450);
+      } while (pulseTime < 1050);
     }
-    else if (digitalRead(STF_MODE) == HIGH && sf < -0.5) {
-      calculateNewFreq(sf, sfOld);
-      int  i = 0;
-      while (i < 8) {
-        i = i + 1;
-        gen.IncrementFrequency (REG0, freqValueInc);
-        delay(1);
-      }
-      gen.ApplySignal(SINE_WAVE, REG0, freqValue);
-    }
+
     else if (digitalRead(STF_MODE) == HIGH && sf > -0.5 && sf < 0.5) {
       gen.ApplySignal(SINE_WAVE, REG0, 0);
     }
