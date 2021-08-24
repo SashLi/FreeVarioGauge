@@ -289,33 +289,26 @@ void Sound(void *) {
     // calculate STF sound
     /////////////////////
     else if (digitalRead(STF_MODE) == HIGH && ((sf > 0.5) || (sf < -0.5))) {
-      float startTimePulse = millis();
-      float pulseTime = 0;
-      while (pulseTime < 750) {
-        while ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
-          freqValueNeg = (-1 * freqValueOld) / 8;
-          int  i = 0;
-          while (i < 8 && freqValueNeg < 0) {
-            i = i + 1;
-            gen.IncrementFrequency (REG0, freqValueNeg);
-            delay(1);
-          }
-          gen.ApplySignal(SINE_WAVE, REG0, 0);
-          freqValueOld = 0;
-          pulseTime = millis() - startTimePulse;
+      unsigned long startTimePulse = millis();
+      unsigned long pulseTime = 0;
+
+      if ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
+        freqValueNeg = (-1 * freqValueOld) / 8;
+        int  i = 0;
+        while (i < 8 && freqValueNeg < 0) {
+          i = i + 1;
+          gen.IncrementFrequency (REG0, freqValueNeg);
+          delay(1);
         }
-        do  {
-          calculateNewFreq(sf, sfOld);
-          int  i = 0;
-          while (i < 8) {
-            i = i + 1;
-            gen.IncrementFrequency (REG0, freqValueInc);
-            delay(1);
-          }
-          gen.ApplySignal(SINE_WAVE, REG0, freqValue);
-          pulseTime = millis() - startTimePulse;
-        } while (pulseTime < 450);
-      } while (pulseTime < 1050);
+        freqValueOld = 0;
+        pulseTime = millis() - startTimePulse;
+      }
+
+
+      else if ((pulseTime >= 300) && (pulseTime <= 450) || ((pulseTime >= 750) && (pulseTime <= 1050))) {
+        gen.ApplySignal(SINE_WAVE, REG0, 0);
+      }
+      pulseTime = millis() - startTimePulse;
     }
 
     else if (digitalRead(STF_MODE) == HIGH && sf > -0.5 && sf < 0.5) {
