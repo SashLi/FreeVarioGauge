@@ -33,14 +33,15 @@ const int Varioschalter = 15;         // Connect button to GND, connect 10 kOhm 
 const int STFSchalter = 5;            // Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 const int STFAuto = 19;               // Flap connection; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin´
 
-float stf = 0;                        // Speed to Fly value
-
 String mod;                           // current mode
+
 int valueMuteAsInt = 1;               // mute via PTT is active
+int count = 0;                        // Counter for STF Sound
 
 bool error = false;
 
 float sf = 0;
+float stf = 0;                        // Speed to Fly value
 float sfOld = 0;
 float var = 0;
 float varOld = 0;
@@ -50,9 +51,12 @@ float freqValueOld = 350;
 float freqValueNeg = 0;
 float freqValueInc = 0 ;
 float errorFreq = 1000;
+
 long pulseStarts = 0;
 long pulsEnds = 0;
 
+unsigned long pulseTime = 0;
+unsigned long startTimePulse = 0;
 
 /////////////////////
 // function to calculate pulse length
@@ -201,6 +205,7 @@ void loop() {
       else if (variable == "MUT") {
         valueMuteAsInt = wert.toInt();
       }
+      sf = (tas - stf) / 10;
     }
     DataString = "";
     vTaskDelay(20);
@@ -240,6 +245,7 @@ void Sound(void *) {
     /////////////////////
     if (digitalRead(PTT) == LOW && valueMuteAsInt ) {
       gen.ApplySignal(SINE_WAVE, REG0, 0);
+      delay(1);
     }
 
 
@@ -247,8 +253,8 @@ void Sound(void *) {
     // calculate Vario sound
     /////////////////////
     else if (digitalRead(STF_MODE) == LOW && var > 0.5) {
-      float startTimePulse = millis();
-      float pulseTime = 0;
+      startTimePulse = millis();
+      pulseTime = 0;
       while (pulseTime < calculatePulse(var)) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
@@ -283,16 +289,30 @@ void Sound(void *) {
       }
       gen.ApplySignal(SINE_WAVE, REG0, freqValue);
     }
-
+    
 
     /////////////////////
     // calculate STF sound
     /////////////////////
     else if (digitalRead(STF_MODE) == HIGH && ((sf > 0.5) || (sf < -0.5))) {
-      unsigned long startTimePulse = millis();
-      unsigned long pulseTime = 0;
-
+      if ((count = 0) || (pulseTime > 1050)) {
+        startTimePulse = millis();
+        pulseTime = 0;
+      }
       if ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
+        calculateNewFreq(sf, sfOld);
+        int  i = 0;
+        while (i < 8) {
+          i = i + 1;
+          gen.IncrementFrequency (REG0, freqValueInc);
+          delay(1);
+        }
+        gen.ApplySignal(SINE_WAVE, REG0, freqValue);
+        pulseTime = millis() - startTimePulse;
+      }
+
+
+      else if ((pulseTime >= 300) && (pulseTime <= 450) || ((pulseTime >= 750) && (pulseTime <= 1050))) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
         while (i < 8 && freqValueNeg < 0) {
@@ -300,19 +320,16 @@ void Sound(void *) {
           gen.IncrementFrequency (REG0, freqValueNeg);
           delay(1);
         }
+        gen.ApplySignal(SINE_WAVE, REG0, 0);
         freqValueOld = 0;
         pulseTime = millis() - startTimePulse;
       }
-
-
-      else if ((pulseTime >= 300) && (pulseTime <= 450) || ((pulseTime >= 750) && (pulseTime <= 1050))) {
-        gen.ApplySignal(SINE_WAVE, REG0, 0);
-      }
-      pulseTime = millis() - startTimePulse;
+      count = 0;
     }
 
     else if (digitalRead(STF_MODE) == HIGH && sf > -0.5 && sf < 0.5) {
       gen.ApplySignal(SINE_WAVE, REG0, 0);
+      delay(1);
     }
   }
   varOld = var;
