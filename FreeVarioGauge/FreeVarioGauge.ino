@@ -994,7 +994,7 @@ void SerialScan (void *p) {
           qnhWasUpdated = true;
         }
         valueQnhAsFloat = wertAsFloat;
-        valueQnhAsString = wert;
+        valueQnhAsString = String(valueQnhAsFloat,0);
       }
 
       //
