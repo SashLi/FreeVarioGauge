@@ -15,7 +15,7 @@ new file mode 100755
 index 0000000000..ec83b75671
 --- /dev/null
 +++ b/src/Device/Driver/FreeVario.cpp
-@@ -0,0 +1,312 @@
+@@ -0,0 +1,316 @@
 +#include "Device/Driver/FreeVario.hpp"
 +#include "Device/Driver.hpp"
 +#include "Device/Util/NMEAWriter.hpp"
@@ -51,7 +51,7 @@ index 0000000000..ec83b75671
 +    Port &port;
 +
 +public:
-+  explicit FreeVarioDevice(Port &_port):port(_port) {}
++  FreeVarioDevice(Port &_port):port(_port) {}
 +  bool ParseNMEA(const char *line,NMEAInfo &info) override;
 +  static bool PFVParser(NMEAInputLine &line, NMEAInfo &info,Port &port);
 +  bool PutMacCready(double mc, OperationEnvironment &env) override;
@@ -178,14 +178,15 @@ index 0000000000..ec83b75671
 +bool
 +FreeVarioDevice::ParseNMEA(const char *_line, NMEAInfo &info)
 +{
-+ NullOperationEnvironment env;
 +
 +  if ( VerifyNMEAChecksum(_line) ){
 +      NMEAInputLine line(_line);
 +      if (line.ReadCompare("$PFV")){
 +            return PFVParser(line, info, port);
 +      }
-+      else  {return false;}
++      else  {
++	return false;
++	}
 +   } else {
 +     return false;
 +   }
@@ -287,7 +288,7 @@ index 0000000000..ec83b75671
 +
 +/*
 + *  Send the internal xcsoar mc value to FreeVario device to
-+ *  be informed about MC changes doen in XCSoar
++ *  be informed about MC changes done in XCSoar
 + */
 +bool
 +FreeVarioDevice::PutMacCready(double mc, OperationEnvironment &env)
@@ -295,7 +296,8 @@ index 0000000000..ec83b75671
 +  if (!EnableNMEA(env)){return false;}
 +  char nmeaOutbuffer[80];
 +  sprintf(nmeaOutbuffer,"PFV,MCI,%0.2f", (double)mc);
-+  return PortWriteNMEA(port, nmeaOutbuffer, env);
++  PortWriteNMEA(port, nmeaOutbuffer, env);
++  return true;
 +}
 +
 +bool
@@ -304,7 +306,8 @@ index 0000000000..ec83b75671
 +     char nmeaOutbuffer[80];
 +     double bugsAsPercentage = (1 - bugs) * 100;
 +     sprintf(nmeaOutbuffer,"PFV,BUG,%f",bugsAsPercentage);
-+     return PortWriteNMEA(port, nmeaOutbuffer, env);
++     PortWriteNMEA(port, nmeaOutbuffer, env);
++     return true;
 +}
 +
 +bool
@@ -312,11 +315,12 @@ index 0000000000..ec83b75671
 +  if (!EnableNMEA(env)){return false;}
 +      char nmeaOutbuffer[80];
 +      sprintf(nmeaOutbuffer,"PFV,QNH,%f",pres.GetHectoPascal());
-+      return PortWriteNMEA(port, nmeaOutbuffer, env);
++      PortWriteNMEA(port, nmeaOutbuffer, env);
++      return true;
 +}
 +
 +
-+static Device *
++static Device * 
 +FreeVarioCreateOnPort(const DeviceConfig &config, Port &com_port)
 +{
 +  return new FreeVarioDevice(com_port);
