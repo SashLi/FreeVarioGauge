@@ -42,7 +42,6 @@ ESP32Encoder Vario_Enc;
 #define VE_PB 27
 #define DEG2RAD 0.0174532925
 #define STF_MODE 13
-#define STF_AUTO 33
 #define OuterRadius 160
 #define InnerRadius 130
 #define xCenter 160
@@ -57,7 +56,7 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
-const String SOFTWARE_VERSION = "  V1.1.2 - 2021";
+const String SOFTWARE_VERSION = "  V1.1.3 - 2022";
 
 static String mod;
 static String mce;
@@ -305,33 +304,13 @@ void EncoderReader(void *p) {
       pushButtonIsLongpress = false;
     }
 
-    if (digitalRead(STF_MODE) == LOW && digitalRead(STF_AUTO) == LOW) {
-      if (stf_mode != "Vario") {
-        stfModeWasUpdate = true;
-      }
-      stf_mode = "Vario";
-      if (stfModeWasUpdate || (millis() >= (lastTimeModeWasSend + 5000) )) {
-        lastTimeModeWasSend = millis();
-        Serial2.println("$PFV,F,C*45");  //Vario-Mode
-      }
-    }
-    else if (digitalRead(STF_MODE) == HIGH && digitalRead(STF_AUTO) == LOW) {
-      if (stf_mode != "STF") {
-        stfModeWasUpdate = true;
-      }
-      stf_mode = "STF";
-      if (stfModeWasUpdate || (millis() >= (lastTimeModeWasSend + 5000) )) {
-        lastTimeModeWasSend = millis();
-        Serial2.println("$PFV,F,S*55");  //STF-Mode
-      }
-    }
-    else if (digitalRead(STF_MODE) == LOW && digitalRead(STF_AUTO) == HIGH) {
+    if (digitalRead(STF_MODE) == LOW) {
       if (stf_mode != "Vario") {
         stfModeWasUpdate = true;
       }
       stf_mode = "Vario";
     }
-    else if (digitalRead(STF_MODE) == HIGH && digitalRead(STF_AUTO) == HIGH) {
+    else if (digitalRead(STF_MODE) == HIGH) {
       if (stf_mode != "STF") {
         stfModeWasUpdate = true;
       }
@@ -910,7 +889,7 @@ void SerialScan (void *p) {
       }
 
       //
-      //analyse current flight mode
+      //analyse current XCSoar mode
       //
       else if (variable == "MOD") {
         mod = wert;

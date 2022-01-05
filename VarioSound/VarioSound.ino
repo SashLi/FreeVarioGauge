@@ -15,7 +15,6 @@
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define STF_MODE 13
-#define STF_AUTO 33
 #define XC_WK 14                      // Automatic mode through flaps or XCSoar; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 #define PTT 27                        // VarioSound off by pressing the radio button; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 #define RXD1 32
@@ -124,7 +123,6 @@ void setup() {
   gen.EnableOutput(true);             // Turn ON the output - it defaults to OFF
   AD9833 gen(FNC_PIN);                // Defaults to 25MHz internal reference frequency
   pinMode(STF_MODE, OUTPUT);
-  pinMode(STF_AUTO, OUTPUT);
   pinMode(XC_WK, INPUT_PULLUP);
   pinMode(PTT, INPUT_PULLUP);
   pinMode(Varioschalter, INPUT_PULLUP);
@@ -176,12 +174,18 @@ void loop() {
 
 
       /////////////////////
-      // Analysis of the current mode
+      // Analysis of the current XCSoar mode
       /////////////////////
       if (variable == "MOD") {
         mod = wert;
       }
 
+      /////////////////////
+      // Analysis of the current Remote control mode
+      /////////////////////
+      if (variable == "REM") {
+        rem = wert;
+      }
 
       /////////////////////
       // Analysis of the true airspeed
@@ -215,23 +219,17 @@ void loop() {
   /////////////////////
   // Analysis automatic mode
   /////////////////////
-  if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
-      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 1) && (mod == "C"))) {
+  if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
+      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 1) && (mod == "C")) || 
+      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == C)) ||
+      ((varioSchalter_state == 0) && (stfSchalter_state == 1))) {
     digitalWrite(STF_MODE, LOW);
-    digitalWrite(STF_AUTO, HIGH);
   }
-  else if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 0) && (stfAuto_state == 0)) ||
-           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (xc_WK_state == 1) && (mod == "S"))) {
+  else if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 0) && (stfAuto_state == 0)) ||
+           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 1) && (mod == "S")) ||
+           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == S)) ||
+           ((varioSchalter_state == 1) && (stfSchalter_state == 0))) {
     digitalWrite(STF_MODE, HIGH);
-    digitalWrite(STF_AUTO, HIGH);
-  }
-  else if ((varioSchalter_state == 1) && (stfSchalter_state == 0)) {
-    digitalWrite(STF_MODE, HIGH);
-    digitalWrite(STF_AUTO, LOW);
-  }
-  else if ((varioSchalter_state == 0) && (stfSchalter_state == 1)) {
-    digitalWrite(STF_MODE, LOW);
-    digitalWrite(STF_AUTO, LOW);
   }
 }
 
