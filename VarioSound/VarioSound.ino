@@ -33,6 +33,7 @@ const int STFSchalter = 5;            // Connect button to GND, connect 10 kOhm 
 const int STFAuto = 19;               // Flap connection; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin´
 
 String mod;                           // current mode
+String rem;                           // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
 int count = 0;                        // Counter for STF Sound
@@ -219,15 +220,15 @@ void loop() {
   /////////////////////
   // Analysis automatic mode
   /////////////////////
-  if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
-      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 1) && (mod == "C")) || 
-      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == C)) ||
+  if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
+      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 1) && (mod == "C")) || 
+      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "C")) ||
       ((varioSchalter_state == 0) && (stfSchalter_state == 1))) {
     digitalWrite(STF_MODE, LOW);
   }
-  else if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 0) && (stfAuto_state == 0)) ||
-           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == A) && (xc_WK_state == 1) && (mod == "S")) ||
-           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == S)) ||
+  else if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 0) && (stfAuto_state == 0)) ||
+           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 1) && (mod == "S")) ||
+           ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "S")) ||
            ((varioSchalter_state == 1) && (stfSchalter_state == 0))) {
     digitalWrite(STF_MODE, HIGH);
   }
