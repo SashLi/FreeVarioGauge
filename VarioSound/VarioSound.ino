@@ -33,7 +33,7 @@ const int STFSchalter = 5;            // Connect button to GND, connect 10 kOhm 
 const int STFAuto = 19;               // Flap connection; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin´
 
 String mod;                           // current mode
-String rem;                           // current Remot Stick mode
+String rem = "A";                     // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
 int count = 0;                        // Counter for STF Sound
