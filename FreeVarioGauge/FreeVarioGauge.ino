@@ -42,6 +42,7 @@ ESP32Encoder Vario_Enc;
 #define VE_PB 27
 #define DEG2RAD 0.0174532925
 #define STF_MODE 13
+#define STF_AUTO 33
 #define OuterRadius 160
 #define InnerRadius 130
 #define xCenter 160
@@ -307,12 +308,18 @@ void EncoderReader(void *p) {
     if (digitalRead(STF_MODE) == LOW) {
       if (stf_mode != "Vario") {
         stfModeWasUpdate = true;
+        if (digitalRead(STF_AUTO) == LOW) {
+          Serial2.println("$POV,C,VAR*4F");  //Vario-Mode
+        }
       }
       stf_mode = "Vario";
     }
     else if (digitalRead(STF_MODE) == HIGH) {
       if (stf_mode != "STF") {
         stfModeWasUpdate = true;
+        if (digitalRead(STF_AUTO) == LOW) {
+          Serial2.println("$POV,C,STF*4B");  //STF-Mode
+        }
       }
       stf_mode = "STF";
     }
@@ -973,7 +980,7 @@ void SerialScan (void *p) {
           qnhWasUpdated = true;
         }
         valueQnhAsFloat = wertAsFloat;
-        valueQnhAsString = String(valueQnhAsFloat,0);
+        valueQnhAsString = String(valueQnhAsFloat, 0);
       }
 
       //

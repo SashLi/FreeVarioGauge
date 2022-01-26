@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define STF_MODE 13
+#define STF_AUTO 33
 #define XC_WK 14                      // Automatic mode through flaps or XCSoar; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 #define PTT 27                        // VarioSound off by pressing the radio button; Connect button to GND, connect 10 kOhm pull-up resistor between 3.3V and pin
 #define RXD1 32
@@ -220,6 +221,12 @@ void loop() {
   /////////////////////
   // Analysis automatic mode
   /////////////////////
+    if ((varioSchalter_state == 1) && (stfSchalter_state == 1)) {
+    digitalWrite(STF_AUTO, HIGH);
+  }
+  else {
+    digitalWrite(STF_AUTO, LOW);
+  }
   if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
       ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 1) && (mod == "C")) || 
       ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "C")) ||
