@@ -57,7 +57,7 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
-const String SOFTWARE_VERSION = "  V1.1.3 - 2022";
+const String SOFTWARE_VERSION = "  V1.1.4 - 2022";
 
 static String mod;
 static String mce;
