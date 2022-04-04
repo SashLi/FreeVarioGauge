@@ -978,8 +978,6 @@ void SerialScan (void *p) {
       else if (variable == "QNH") {
         if ((valueQnhAsFloat != wertAsFloat) && (wertAsFloat < 2000)) {
           qnhWasUpdated = true;
-          Serial.print("New QNH: ");
-          Serial.println(wertAsFloat);
         }
         valueQnhAsFloat = wertAsFloat;
         valueQnhAsString = String(valueQnhAsFloat, 0);
