@@ -90,8 +90,9 @@ static float valueMacAsFloat = 0.5;
 static float valueHagAsFloat = 0;
 static float valueHigAsFloat = 0;
 static float tem = 0;
+static float stf = 0.0;
 
-static double stf = 0;
+static double stfValue = 0;
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
 
@@ -118,6 +119,7 @@ int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 int valueMuteAsInt = 1;
+int FF = 20;  // FF Filterfaktor - über wieviele Werte
 
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
@@ -906,7 +908,7 @@ void SerialScan (void *p) {
       //analyse speed to fly
       //
       else if (variable == "STF") {
-        stf = wert.toFloat();
+        stfValue = wert.toFloat();
       }
 
       //
@@ -1005,6 +1007,19 @@ void SerialScan (void *p) {
     dataString = "";
     vTaskDelay(20);
   }
+}
+
+//**************************
+//****  Filter for STF  ****
+//**************************
+float filtern(float stfValue, uint16_t FF) {
+  static uint16_t count = 0;
+  // damit am Anfang der Wert nahe am Messwert ist
+  if (count < FF) {
+    FF = count++;
+  }
+  stf = ((stf * FF) + stfValue) / (FF + 1);
+  return stf;
 }
 
 //********************************
