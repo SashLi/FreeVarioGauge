@@ -38,7 +38,7 @@ String rem = "A";                     // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
 int count = 0;                        // Counter for STF Sound
-int FF = 20;                          // FF Filterfaktor - über wieviele Werte
+int FF = 40;                          // FF Filterfaktor - über wieviele Werte
 
 bool error = false;
 
@@ -316,11 +316,11 @@ void Sound(void *) {
     // calculate STF sound
     /////////////////////
     else if (digitalRead(STF_MODE) == HIGH && ((sf > 0.5) || (sf < -0.5))) {
-      if ((count = 0) || (pulseTime > 1050)) {
+      if ((count = 0) || (pulseTime > 850)) {
         startTimePulse = millis();
         pulseTime = 0;
       }
-      if ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
+      if ((pulseTime < 300) || ((pulseTime > 400) && (pulseTime < 700))) {
         calculateNewFreq(sf, sfOld);
         int  i = 0;
         while (i < 8) {
@@ -333,7 +333,7 @@ void Sound(void *) {
       }
 
 
-      else if ((pulseTime >= 300) && (pulseTime <= 450) || ((pulseTime >= 750) && (pulseTime <= 1050))) {
+      else if ((pulseTime >= 300) && (pulseTime <= 400) || ((pulseTime >= 700) && (pulseTime <= 850))) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
         while (i < 8 && freqValueNeg < 0) {

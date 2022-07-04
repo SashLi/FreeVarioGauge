@@ -119,7 +119,7 @@ int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 int valueMuteAsInt = 1;
-int FF = 20;  // FF Filterfaktor - über wieviele Werte
+int FF = 40;  // FF Filterfaktor - über wieviele Werte
 
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
