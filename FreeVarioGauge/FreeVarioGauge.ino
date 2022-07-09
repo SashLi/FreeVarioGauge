@@ -108,6 +108,7 @@ static bool qnhWasUpdated = true;
 static bool bugWasUpdated = true;
 static bool muteWasUpdated = true;
 static bool stfModeWasUpdate = true;
+static bool serial2Error = false;
 
 bool showBootscreen = true;
 bool mci = false;
@@ -129,6 +130,7 @@ static bool requestMenuFontPaint = false;
 static unsigned long lastTimeBoot = 0;
 static unsigned long lastTimeReady = 0;
 static unsigned long lastTimeModeWasSend = 0;
+static unsigned long lastTimeSerial2 = 0;
 
 void setup() {
   // Enable the weak pull down resistors
@@ -828,6 +830,13 @@ void SerialScan (void *p) {
     }
 
     if (dataString.startsWith("$PFV")) {
+      if (serial2Error) {
+        serial2Error = false;
+        String qnhStr = ("$PFV,Q,S," + String(valueQnhAsFloat) + "*");
+        int checksum = calculateChecksum(qnhStr);
+        Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar
+      }
+      lastTimeSerial2 = millis();
       //Serial2.println(DataString);
       int pos = dataString.indexOf(',');
       dataString.remove(0, pos + 1);
@@ -1004,6 +1013,10 @@ void SerialScan (void *p) {
         muteWasUpdated = true;
         valueMuteAsInt = wert.toInt();
       }
+    }
+
+    else if ((millis() - lastTimeSerial2) > 10000) {
+      serial2Error = true;
     }
     dataString = "";
     vTaskDelay(20);
