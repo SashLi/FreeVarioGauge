@@ -1013,13 +1013,13 @@ void SerialScan (void *p) {
 //**************************
 //****  Filter for STF  ****
 //**************************
-float filter(float stfValue, uint16_t FF) {
+float filter(float filteredSTF, uint16_t filterfactor) {
   static uint16_t count = 0;
   // damit am Anfang der Wert nahe am Messwert ist
-  if (count < FF) {
-    FF = count++;
+  if (count < filterfactor) {
+    filterfactor = count++;
   }
-  stf = ((stf * FF) + stfValue) / (FF + 1);
+  stf = ((stf * filterfactor) + filteredSTF) / (filterfactor + 1);
   return stf;
 }
 

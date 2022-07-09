@@ -122,13 +122,13 @@ float calculateNewFreq(float newValue, float oldValue) {
 //**************************
 //****  Filter for STF  ****
 //**************************
-float filter(float stfValue, uint16_t FF) {
+float filter(float filteredSTF, uint16_t filterfactor) {
   static uint16_t count = 0;
   // damit am Anfang der Wert nahe am Messwert ist
-  if (count < FF) {
-    FF = count++;
+  if (count < filterfactor) {
+    filterfactor = count++;
   }
-  stf = ((stf * FF) + stfValue) / (FF + 1);
+  stf = ((stf * filterfactor) + filteredSTF) / (filterfactor + 1);
   return stf;
 }
 
@@ -317,11 +317,11 @@ void Sound(void *) {
     // calculate STF sound
     /////////////////////
     else if (digitalRead(STF_MODE) == HIGH && ((sf > 0.5) || (sf < -0.5))) {
-      if ((count = 0) || (pulseTime > 850)) {
+      if ((count = 0) || (pulseTime > 1050)) {
         startTimePulse = millis();
         pulseTime = 0;
       }
-      if ((pulseTime < 300) || ((pulseTime > 400) && (pulseTime < 700))) {
+      if ((pulseTime < 300) || ((pulseTime > 450) && (pulseTime < 750))) {
         calculateNewFreq(sf, sfOld);
         int  i = 0;
         while (i < 8) {
@@ -334,7 +334,7 @@ void Sound(void *) {
       }
 
 
-      else if ((pulseTime >= 300) && (pulseTime <= 400) || ((pulseTime >= 700) && (pulseTime <= 850))) {
+      else if ((pulseTime >= 300) && (pulseTime <= 450) || ((pulseTime >= 750) && (pulseTime <= 1050))) {
         freqValueNeg = (-1 * freqValueOld) / 8;
         int  i = 0;
         while (i < 8 && freqValueNeg < 0) {
