@@ -38,7 +38,7 @@ String rem = "A";                     // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
 int count = 0;                        // Counter for STF Sound
-int FF = 40;                          // FF Filterfaktor - über wieviele Werte
+int FF = 20;                          // FF Filterfaktor - über wieviele Werte
 
 bool error = false;
 
@@ -122,7 +122,7 @@ float calculateNewFreq(float newValue, float oldValue) {
 //**************************
 //****  Filter for STF  ****
 //**************************
-float filtern(float stfValue, uint16_t FF) {
+float filter(float stfValue, uint16_t FF) {
   static uint16_t count = 0;
   // damit am Anfang der Wert nahe am Messwert ist
   if (count < FF) {
@@ -217,6 +217,7 @@ void loop() {
       /////////////////////
       if (variable == "STF") {
         stfValue = wert.toFloat();
+        stf = filter(stfValue, FF);
       }
 
 
