@@ -120,7 +120,7 @@ int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 int valueMuteAsInt = 1;
-int FF = 20;  // FF Filterfaktor - über wieviele Werte
+int FF = 20;  // FF filter factor - over how many values
 
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
@@ -1028,7 +1028,7 @@ void SerialScan (void *p) {
 //**************************
 float filter(float filteredSTF, uint16_t filterfactor) {
   static uint16_t count = 0;
-  // damit am Anfang der Wert nahe am Messwert ist
+  // so that at the beginning the value is close to the measured value
   if (count < filterfactor) {
     filterfactor = count++;
   }
