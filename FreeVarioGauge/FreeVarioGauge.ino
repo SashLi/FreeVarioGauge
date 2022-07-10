@@ -830,13 +830,33 @@ void SerialScan (void *p) {
     }
 
     if (dataString.startsWith("$PFV")) {
-      if (serial2Error) {
+      if (serial2Error ==true) {
         serial2Error = false;
+        Serial.println("Error detected");
+
+        // synchronize QNH after reboot of OV
         String qnhStr = ("$PFV,Q,S," + String(valueQnhAsFloat) + "*");
-        int checksum = calculateChecksum(qnhStr);
-        Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar
+        int checksumQnh = calculateChecksum(qnhStr);
+        String checksumQnhAsString = String (checksumQnh, HEX);
+        String syncQnh = (qnhStr + checksumQnhAsString);
+        Serial2.println(syncQnh);
+
+        // synchronize Bug after reboot of OV
+        String bugStr = ("$PFV,B,S," + String(valueBugAsFloat) + "*");
+        int checksumBug = calculateChecksum(bugStr);
+        String checksumBugAsString = String (checksumBug, HEX);
+        String syncBug = (bugStr + checksumBugAsString);
+        Serial2.println(syncBug);
+
+        // synchronize MC after reboot of OV
+        String mcStr = ("$PFV,M,S," + valueMacAsString + "*");
+        int checksumMc = calculateChecksum(mcStr);
+        String checksumMcAsString = String (checksumMc, HEX);
+        String synMc = (mcStr + checksumMcAsString);
+        Serial2.println(synMc);
       }
-      lastTimeSerial2 = millis();
+      
+      lastTimeSerial2 = millis(); 
       //Serial2.println(DataString);
       int pos = dataString.indexOf(',');
       dataString.remove(0, pos + 1);
