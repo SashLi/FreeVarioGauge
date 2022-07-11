@@ -20,6 +20,8 @@
 //#include<HardwareSerial.h>
 #include<SPI.h>
 #include<TFT_eSPI.h>
+#include <Preferences.h>
+Preferences prefs;
 
 #include "LogoOV.h"
 #include "FS.h"
@@ -96,7 +98,6 @@ static float stf = 0.0;
 static double stfValue = 0;
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
-static double valueAttenAsFloat = 2;
 
 static bool varWasUpdated = true;
 static bool vaaWasUpdated = true;
@@ -162,6 +163,23 @@ void setup() {
   xTaskCreate(EncoderReader, "Encoder Task", 5000, NULL, 80, &TaskEncoder);
   xTaskCreate(ValueRefresh, "Value Refresh", 5000, NULL, 40, &TaskValueRefresh);
 
+  prefs.begin("settings", false);
+  valueMuteAsInt = prefs.getUInt("Mute", 1);
+  valueAttenAsInt = prefs.getUInt("ATTEN", 2);
+  nameSpeed = prefs.getString("nameSpeed", "GS");
+  nameHight = prefs.getString("nameHight", "MSL");
+  prefs.end();
+
+  valueAttenAsString = String(valueAttenAsInt);
+
+  if (valueMuteAsInt == 0) {
+    valueMuteAsString = "OFF";
+    muteWasUpdated = true;
+  }
+  else if (valueMuteAsInt == 1) {
+    valueMuteAsString = "ON";
+    muteWasUpdated = true;
+  }
 }
 
 void loop() {
@@ -224,7 +242,7 @@ void showBootScreen(String versionString, TFT_eSPI tftIN) {
 }
 
 void EncoderReader(void *p) {
-  const int DEBOUNCE_DELAY = 120;
+  const int DEBOUNCE_DELAY = 80;
   const long LONGPRESS_TIME = 500;
   const long TIME_SINCE_BOOT = 5000;
   const long NOT_SET = -1;
@@ -503,6 +521,9 @@ void changeSpeedOption () {
     nameSpeed = "TAS";
     tasWasUpdated = true;
   }
+  prefs.begin("settings", false);
+  prefs.putString("nameSpeed", nameSpeed);
+  prefs.end();
 }
 
 void changeHighOption () {
@@ -514,6 +535,9 @@ void changeHighOption () {
     nameHight = "AGL";
     hagWasUpdated = true;
   }
+  prefs.begin("settings", false);
+  prefs.putString("nameHight", nameHight);
+  prefs.end();
 }
 
 void changeValueOptionRight () {
@@ -586,16 +610,17 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar
   }
   if (nameSetting == "ATTEN") {
-    if (changeLevelTwoValue && valueAttenAsFloat < 3) {
-      valueAttenAsFloat = valueAttenAsFloat + 1;
+    if (changeLevelTwoValue && valueAttenAsInt < 3) {
+      valueAttenAsInt = valueAttenAsInt + 1;
     }
-    else if (!changeLevelTwoValue && valueAttenAsFloat > 0) {
-      valueAttenAsFloat = valueAttenAsFloat - 1;
+    else if (!changeLevelTwoValue && valueAttenAsInt > 0) {
+      valueAttenAsInt = valueAttenAsInt - 1;
     }
-    char buf[20];
-    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
-    valueAttenAsString = dtostrf(valueAttenAsFloat, 1, 0, buf);
+    valueAttenAsString = String(valueAttenAsInt);
     attWasUpdated = true;
+    prefs.begin("settings", false);
+    prefs.putUInt("ATTEN", valueAttenAsInt);
+    prefs.end();
   }
 }
 void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
@@ -613,6 +638,9 @@ void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
     char buf[20];
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     muteWasUpdated = true;
+    prefs.begin("settings", false);
+    prefs.putUInt("Mute", valueMuteAsInt);
+    prefs.end();
     Serial2.printf("%s%X\n", muteStr.c_str(), checksum);
   }
 }
@@ -975,7 +1003,7 @@ void SerialScan (void *p) {
       //
       else if (variable == "STF") {
         stfValue = wert.toFloat();
-        int FF = (valueAttenAsFloat*10)+1;
+        int FF = (valueAttenAsInt * 10) + 1;
         stf = filter(stfValue, FF);
       }
 
