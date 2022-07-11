@@ -38,11 +38,12 @@ String rem = "A";                     // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
 int count = 0;                        // Counter for STF Sound
+int FF = 20;                          // FF filter factor - over how many values
 
 bool error = false;
 
 float sf = 0;
-float stf = 0;                        // Speed to Fly value
+float stfValue = 0;                        // Speed to Fly value
 float sfOld = 0;
 float var = 0;
 float varOld = 0;
@@ -52,6 +53,7 @@ float freqValueOld = 350;
 float freqValueNeg = 0;
 float freqValueInc = 0 ;
 float errorFreq = 1000;
+static float stf = 0.0;
 
 long pulseStarts = 0;
 long pulsEnds = 0;
@@ -115,6 +117,19 @@ float calculateNewFreq(float newValue, float oldValue) {
   freqValueInc = (freqValue - freqValueOld) / 8;
   freqValueOld = freqValue;
   return freqValue;
+}
+
+//**************************
+//****  Filter for STF  ****
+//**************************
+float filter(float filteredSTF, uint16_t filterfactor) {
+  static uint16_t count = 0;
+  // so that at the beginning the value is close to the measured value
+  if (count < filterfactor) {
+    filterfactor = count++;
+  }
+  stf = ((stf * filterfactor) + filteredSTF) / (filterfactor + 1);
+  return stf;
 }
 
 void setup() {
@@ -201,7 +216,8 @@ void loop() {
       // Analysis of speed to fly
       /////////////////////
       if (variable == "STF") {
-        stf = wert.toFloat();
+        stfValue = wert.toFloat();
+        stf = filter(stfValue, FF);
       }
 
 

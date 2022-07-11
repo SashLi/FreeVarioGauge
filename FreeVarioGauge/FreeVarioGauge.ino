@@ -20,6 +20,8 @@
 //#include<HardwareSerial.h>
 #include<SPI.h>
 #include<TFT_eSPI.h>
+#include <Preferences.h>
+Preferences prefs;
 
 #include "LogoOV.h"
 #include "FS.h"
@@ -57,7 +59,7 @@ TaskHandle_t SerialScanTask, TaskEncoder, TaskValueRefresh, ArcRefreshTask;
 
 SemaphoreHandle_t xTFTSemaphore;
 
-const String SOFTWARE_VERSION = "  V1.1.4 - 2022";
+const String SOFTWARE_VERSION = "  V1.1.5 - 2022";
 
 static String mod;
 static String mce;
@@ -70,6 +72,7 @@ static String stf_mode;
 static String valueQnhAsString = "1013";
 static String valueBugAsString = "0";
 static String valueMuteAsString = "ON";
+static String valueAttenAsString = "2";
 static String valueGrsAsString = "0";
 static String valueTasAsString = "0";
 static String valueVaaAsString = "0.0";
@@ -90,8 +93,9 @@ static float valueMacAsFloat = 0.5;
 static float valueHagAsFloat = 0;
 static float valueHigAsFloat = 0;
 static float tem = 0;
+static float stf = 0.0;
 
-static double stf = 0;
+static double stfValue = 0;
 static double valueQnhAsFloat = 1013;
 static double valueBugAsFloat = 0;
 
@@ -105,8 +109,10 @@ static bool higWasUpdated = true;
 static bool tempWasUpdated = true;
 static bool qnhWasUpdated = true;
 static bool bugWasUpdated = true;
+static bool attWasUpdated = true;
 static bool muteWasUpdated = true;
 static bool stfModeWasUpdate = true;
+static bool serial2Error = false;
 
 bool showBootscreen = true;
 bool mci = false;
@@ -118,6 +124,7 @@ int spriteNameWidthHight, spriteValueWidthHight, spriteunitWidthHight;
 int spriteNameWidthSetting, spriteValueWidthSetting, spriteunitWidthSetting;
 int startAngle, segmentDraw, segmentCountOld, segmentCount;
 int valueMuteAsInt = 1;
+int valueAttenAsInt = 2;
 
 static int requestDrawMenu = 0;
 static int requestDrawMenuLevel = 0;
@@ -127,6 +134,7 @@ static bool requestMenuFontPaint = false;
 static unsigned long lastTimeBoot = 0;
 static unsigned long lastTimeReady = 0;
 static unsigned long lastTimeModeWasSend = 0;
+static unsigned long lastTimeSerial2 = 0;
 
 void setup() {
   // Enable the weak pull down resistors
@@ -151,10 +159,27 @@ void setup() {
   Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
   SPIFFSstart();
 
-  xTaskCreate(SerialScan, "Serial Scan", 1000, NULL, 50, &SerialScanTask);
+  xTaskCreate(SerialScan, "Serial Scan", 5000, NULL, 50, &SerialScanTask);
   xTaskCreate(EncoderReader, "Encoder Task", 5000, NULL, 80, &TaskEncoder);
   xTaskCreate(ValueRefresh, "Value Refresh", 5000, NULL, 40, &TaskValueRefresh);
 
+  prefs.begin("settings", false);
+  valueMuteAsInt = prefs.getUInt("Mute", 1);
+  valueAttenAsInt = prefs.getUInt("ATTEN", 2);
+  nameSpeed = prefs.getString("nameSpeed", "GS");
+  nameHight = prefs.getString("nameHight", "MSL");
+  prefs.end();
+
+  valueAttenAsString = String(valueAttenAsInt);
+
+  if (valueMuteAsInt == 0) {
+    valueMuteAsString = "OFF";
+    muteWasUpdated = true;
+  }
+  else if (valueMuteAsInt == 1) {
+    valueMuteAsString = "ON";
+    muteWasUpdated = true;
+  }
 }
 
 void loop() {
@@ -496,6 +521,9 @@ void changeSpeedOption () {
     nameSpeed = "TAS";
     tasWasUpdated = true;
   }
+  prefs.begin("settings", false);
+  prefs.putString("nameSpeed", nameSpeed);
+  prefs.end();
 }
 
 void changeHighOption () {
@@ -507,23 +535,29 @@ void changeHighOption () {
     nameHight = "AGL";
     hagWasUpdated = true;
   }
+  prefs.begin("settings", false);
+  prefs.putString("nameHight", nameHight);
+  prefs.end();
 }
 
 void changeValueOptionRight () {
   if ( nameSetting == "Bug") {
-    nameSetting = "Mute";
-    muteWasUpdated = true;
+    nameSetting = "ATTEN";
+    attWasUpdated = true;
   }
   else if ( nameSetting == "QNH") {
     nameSetting = "Bug";
     bugWasUpdated = true;
+  }
+  else if ( nameSetting == "ATTEN") {
+    nameSetting = "Mute";
+    muteWasUpdated = true;
   }
   else if ( nameSetting == "Mute") {
     nameSetting = "QNH";
     qnhWasUpdated = true;
   }
 }
-
 
 void changeValueOptionLeft () {
   if ( nameSetting == "Bug") {
@@ -534,9 +568,13 @@ void changeValueOptionLeft () {
     nameSetting = "Mute";
     muteWasUpdated = true;
   }
-  else if ( nameSetting == "Mute") {
+  else if ( nameSetting == "ATTEN") {
     nameSetting = "Bug";
     bugWasUpdated = true;
+  }
+  else if ( nameSetting == "Mute") {
+    nameSetting = "ATTEN";
+    attWasUpdated = true;
   }
 }
 void changeLevelTwoMenu (bool changeLevelTwoValue) {
@@ -555,6 +593,7 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     qnhWasUpdated = true;
     Serial2.printf("%s%X\n", qnhStr.c_str(), checksum);                //send QNH to XCSoar
   }
+
   if (nameSetting == "Bug") {
     if (changeLevelTwoValue && valueBugAsFloat < 50) {
       valueBugAsFloat = valueBugAsFloat + 1;
@@ -569,6 +608,19 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
     valueBugAsString = dtostrf(valueBugAsFloat, 2, 0, buf);
     bugWasUpdated = true;
     Serial2.printf("%s%X\n", bugStr.c_str(), checksum);                //send bug to XCSoar
+  }
+  if (nameSetting == "ATTEN") {
+    if (changeLevelTwoValue && valueAttenAsInt < 3) {
+      valueAttenAsInt = valueAttenAsInt + 1;
+    }
+    else if (!changeLevelTwoValue && valueAttenAsInt > 0) {
+      valueAttenAsInt = valueAttenAsInt - 1;
+    }
+    valueAttenAsString = String(valueAttenAsInt);
+    attWasUpdated = true;
+    prefs.begin("settings", false);
+    prefs.putUInt("ATTEN", valueAttenAsInt);
+    prefs.end();
   }
 }
 void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
@@ -586,6 +638,9 @@ void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
     char buf[20];
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
     muteWasUpdated = true;
+    prefs.begin("settings", false);
+    prefs.putUInt("Mute", valueMuteAsInt);
+    prefs.end();
     Serial2.printf("%s%X\n", muteStr.c_str(), checksum);
   }
 }
@@ -766,6 +821,20 @@ void ValueRefresh(void *parameter) {
         xSemaphoreGive(xTFTSemaphore);
       }
     }
+    else if (nameSetting == "ATTEN" && attWasUpdated) {
+      if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+      {
+        valueSetting = valueAttenAsString;
+        if ((requestDrawMenuLevel == 2 ) && (requestDrawMenu == 3) || (requestDrawMenuLevel == 3 ) && (requestDrawMenu == 3)) {
+          DrawInfo(nameOfField, infoSmall, RED, "small", "ATT", valueSetting, "", 39, 25, 63, 31, 73, 204);
+        }
+        else {
+          DrawInfo(nameOfField, infoSmall, WHITE, "small", "ATT", valueSetting, "", 39, 25, 63, 31, 73, 204);
+        }
+        attWasUpdated = false;
+        xSemaphoreGive(xTFTSemaphore);
+      }
+    }
     else if (nameSetting == "Mute" && muteWasUpdated) {
       if ( xSemaphoreTake( xTFTSemaphore, ( TickType_t ) 5 ) == pdTRUE )
       {
@@ -776,7 +845,7 @@ void ValueRefresh(void *parameter) {
         else {
           DrawInfo(nameOfField, infoSmall, WHITE, "small", "Mute", valueSetting, "", 39, 25, 63, 31, 73, 204);
         }
-        bugWasUpdated = false;
+        muteWasUpdated = false;
         xSemaphoreGive(xTFTSemaphore);
       }
     }
@@ -826,6 +895,33 @@ void SerialScan (void *p) {
     }
 
     if (dataString.startsWith("$PFV")) {
+      if (serial2Error == true) {
+        serial2Error = false;
+        Serial.println("Error detected");
+
+        // synchronize QNH after reboot of OV
+        String qnhStr = ("$PFV,Q,S," + String(valueQnhAsFloat) + "*");
+        int checksumQnh = calculateChecksum(qnhStr);
+        String checksumQnhAsString = String (checksumQnh, HEX);
+        String syncQnh = (qnhStr + checksumQnhAsString);
+        Serial2.println(syncQnh);
+
+        // synchronize Bug after reboot of OV
+        String bugStr = ("$PFV,B,S," + String(valueBugAsFloat) + "*");
+        int checksumBug = calculateChecksum(bugStr);
+        String checksumBugAsString = String (checksumBug, HEX);
+        String syncBug = (bugStr + checksumBugAsString);
+        Serial2.println(syncBug);
+
+        // synchronize MC after reboot of OV
+        String mcStr = ("$PFV,M,S," + valueMacAsString + "*");
+        int checksumMc = calculateChecksum(mcStr);
+        String checksumMcAsString = String (checksumMc, HEX);
+        String synMc = (mcStr + checksumMcAsString);
+        Serial2.println(synMc);
+      }
+
+      lastTimeSerial2 = millis();
       //Serial2.println(DataString);
       int pos = dataString.indexOf(',');
       dataString.remove(0, pos + 1);
@@ -906,7 +1002,9 @@ void SerialScan (void *p) {
       //analyse speed to fly
       //
       else if (variable == "STF") {
-        stf = wert.toFloat();
+        stfValue = wert.toFloat();
+        int FF = (valueAttenAsInt * 10) + 1;
+        stf = filter(stfValue, FF);
       }
 
       //
@@ -1002,9 +1100,26 @@ void SerialScan (void *p) {
         valueMuteAsInt = wert.toInt();
       }
     }
+
+    else if ((millis() - lastTimeSerial2) > 10000) {
+      serial2Error = true;
+    }
     dataString = "";
     vTaskDelay(20);
   }
+}
+
+//**************************
+//****  Filter for STF  ****
+//**************************
+float filter(float filteredSTF, uint16_t filterfactor) {
+  static uint16_t count = 0;
+  // so that at the beginning the value is close to the measured value
+  if (count < filterfactor) {
+    filterfactor = count++;
+  }
+  stf = ((stf * filterfactor) + filteredSTF) / (filterfactor + 1);
+  return stf;
 }
 
 //********************************
