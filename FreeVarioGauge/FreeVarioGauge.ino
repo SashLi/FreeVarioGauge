@@ -617,10 +617,15 @@ void changeLevelTwoMenu (bool changeLevelTwoValue) {
       valueAttenAsInt = valueAttenAsInt - 1;
     }
     valueAttenAsString = String(valueAttenAsInt);
-    attWasUpdated = true;
     prefs.begin("settings", false);
     prefs.putUInt("ATTEN", valueAttenAsInt);
     prefs.end();
+    attWasUpdated = true;
+    String attStr = ("$PFV,A,S," + valueAttenAsString + "*");
+    int checksum = calculateChecksum(attStr);
+    char buf[20];
+    // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
+    Serial2.printf("%s%X\n", attStr.c_str(), checksum);
   }
 }
 void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
@@ -633,14 +638,14 @@ void changeLevelTwoMenuTurn (bool changeLevelTwoValue) {
       valueMuteAsInt = 1;
       valueMuteAsString = "ON";
     }
+    prefs.begin("settings", false);
+    prefs.putUInt("Mute", valueMuteAsInt);
+    prefs.end();
+    muteWasUpdated = true;
     String muteStr = ("$PFV,S,S," + String(valueMuteAsInt) + "*");
     int checksum = calculateChecksum(muteStr);
     char buf[20];
     // dtostrf(floatvar, stringlength, digits_after_decimal, charbuf);
-    muteWasUpdated = true;
-    prefs.begin("settings", false);
-    prefs.putUInt("Mute", valueMuteAsInt);
-    prefs.end();
     Serial2.printf("%s%X\n", muteStr.c_str(), checksum);
   }
 }
@@ -1098,6 +1103,14 @@ void SerialScan (void *p) {
       else if (variable == "MUT") {
         muteWasUpdated = true;
         valueMuteAsInt = wert.toInt();
+      }
+
+      //
+      //analyse Attenuation
+      //
+      else if (variable == "ATT") {
+        attWasUpdated = true;
+        valueAttenAsInt = wert.toInt();
       }
     }
 

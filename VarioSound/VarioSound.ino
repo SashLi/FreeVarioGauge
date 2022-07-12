@@ -37,8 +37,8 @@ String mod;                           // current mode
 String rem = "A";                     // current Remot Stick mode
 
 int valueMuteAsInt = 1;               // mute via PTT is active
+int valueAttenAsInt = 2;              // Attenuation ist set
 int count = 0;                        // Counter for STF Sound
-int FF = 20;                          // FF filter factor - over how many values
 
 bool error = false;
 
@@ -217,6 +217,7 @@ void loop() {
       /////////////////////
       if (variable == "STF") {
         stfValue = wert.toFloat();
+        int FF = (valueAttenAsInt * 10) + 1;
         stf = filter(stfValue, FF);
       }
 
@@ -227,6 +228,15 @@ void loop() {
       else if (variable == "MUT") {
         valueMuteAsInt = wert.toInt();
       }
+
+
+      /////////////////////
+      // Analysis Attenuation
+      /////////////////////
+      else if (variable == "ATT") {
+        valueAttenAsInt = wert.toInt();
+      }
+
       sf = (tas - stf) / 10;
     }
     DataString = "";
@@ -237,14 +247,14 @@ void loop() {
   /////////////////////
   // Analysis automatic mode
   /////////////////////
-    if ((varioSchalter_state == 1) && (stfSchalter_state == 1)) {
+  if ((varioSchalter_state == 1) && (stfSchalter_state == 1)) {
     digitalWrite(STF_AUTO, HIGH);
   }
   else {
     digitalWrite(STF_AUTO, LOW);
   }
   if (((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 0) && (stfAuto_state == 1)) ||
-      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 1) && (mod == "C")) || 
+      ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "A") && (xc_WK_state == 1) && (mod == "C")) ||
       ((varioSchalter_state == 1) && (stfSchalter_state == 1) && (rem == "C")) ||
       ((varioSchalter_state == 0) && (stfSchalter_state == 1))) {
     digitalWrite(STF_MODE, LOW);
@@ -311,7 +321,7 @@ void Sound(void *) {
       }
       gen.ApplySignal(SINE_WAVE, REG0, freqValue);
     }
-    
+
 
     /////////////////////
     // calculate STF sound
